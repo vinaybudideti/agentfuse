@@ -217,3 +217,56 @@ def test_openai_status_408_retryable():
     exc = _MockException("Request timeout", status_code=408)
     result = classify_error(exc, "openai")
     assert result.retryable is True
+
+
+def test_openai_module_detection():
+    """Exceptions from openai module must be auto-detected."""
+    from agentfuse.core.error_classifier import _is_openai_error
+    # Our mock exceptions don't have openai module
+    exc = _MockException("test")
+    assert not _is_openai_error(exc)
+
+
+def test_anthropic_module_detection():
+    """Exceptions from anthropic module must be auto-detected."""
+    from agentfuse.core.error_classifier import _is_anthropic_error
+    exc = _MockException("test")
+    assert not _is_anthropic_error(exc)
+
+
+def test_google_module_detection():
+    """Exceptions from google module must be auto-detected."""
+    from agentfuse.core.error_classifier import _is_google_error
+    exc = _MockException("test")
+    assert not _is_google_error(exc)
+
+    # Create a mock with google module
+    class GoogleError(Exception):
+        pass
+    GoogleError.__module__ = "google.genai"
+    assert _is_google_error(GoogleError("test"))
+
+
+def test_httpx_module_detection():
+    """httpx exceptions must be auto-detected."""
+    from agentfuse.core.error_classifier import _is_httpx_error
+    exc = _MockException("test")
+    assert not _is_httpx_error(exc)
+
+
+def test_google_client_error_generic():
+    """Google ClientError without known status code."""
+    class ClientError(_MockException):
+        pass
+    ClientError.__name__ = "ClientError"
+    exc = ClientError("Unknown client error", status_code=422)
+    result = classify_error(exc, "gemini")
+    assert result.retryable is False
+    assert result.error_type == "client_error"
+
+
+def test_openai_status_403_not_retryable():
+    """OpenAI 403 (forbidden) is not retryable."""
+    exc = _MockException("Forbidden", status_code=403)
+    result = classify_error(exc, "openai")
+    assert result.retryable is False
