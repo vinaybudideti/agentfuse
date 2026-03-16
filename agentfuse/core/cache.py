@@ -297,6 +297,16 @@ class TwoTierCacheMiddleware:
         jitter = random.uniform(-self.TTL_JITTER_PCT, self.TTL_JITTER_PCT)
         return int(self.DEFAULT_TTL * (1 + jitter))
 
+    def get_stats(self) -> dict:
+        """Return cache statistics for observability."""
+        return {
+            "l1_local_size": len(self._local_l1),
+            "l2_entries": len(self._faiss_metadata),
+            "l2_index_total": self._faiss_index.ntotal if self._faiss_index else 0,
+            "redis_connected": self._redis is not None,
+            "embedding_model": self._embedding_model_name,
+        }
+
 
     # --- Backward compatibility API ---
 
@@ -356,6 +366,7 @@ class TwoTierCacheMiddleware:
             with self._faiss_lock:
                 self._faiss_index.add(vec)
                 self._faiss_metadata.append(entry)
+                self._faiss_vectors.append(vec.flatten())
         except Exception as e:
             logger.warning("Cache store failed: %s", e)
 
