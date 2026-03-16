@@ -22,7 +22,13 @@ def wrap_openai(budget_usd: float, run_id: str = None,
     Monkey-patches openai.chat.completions.create to intercept all calls.
     Call once at the start of an agent run.
     """
-    import openai
+    try:
+        import openai
+    except ImportError:
+        raise ImportError(
+            "openai package is required for wrap_openai(). "
+            "Install with: pip install agentfuse-runtime[openai]"
+        )
     from agentfuse.core.budget import BudgetEngine
     from agentfuse.core.cache import CacheMiddleware, CacheHit
     from agentfuse.providers.pricing import ModelPricingEngine

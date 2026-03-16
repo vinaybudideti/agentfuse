@@ -24,7 +24,13 @@ def wrap_anthropic(budget_usd: float, run_id: str = None,
 
     Returns (run_id, client) — the patched Anthropic client.
     """
-    import anthropic as anthropic_sdk
+    try:
+        import anthropic as anthropic_sdk
+    except ImportError:
+        raise ImportError(
+            "anthropic package is required for wrap_anthropic(). "
+            "Install with: pip install agentfuse-runtime[anthropic]"
+        )
     from agentfuse.core.budget import BudgetEngine
     from agentfuse.core.cache import CacheMiddleware, CacheHit
     from agentfuse.providers.pricing import ModelPricingEngine
