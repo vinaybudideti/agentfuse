@@ -11,6 +11,7 @@ FIX: Logs final failure with context for debugging.
 FIX: Recalculates token count after model downgrade for accurate cost tracking.
 """
 
+import asyncio
 import time
 import logging
 
@@ -117,3 +118,47 @@ class CostAwareRetry:
                     wait_time = min(classified.retry_after, 60)
 
                 time.sleep(wait_time)
+
+    async def wrap_async(self, fn, messages: list, model: str, provider: str = None):
+        """Async version of wrap() — uses asyncio.sleep instead of time.sleep.
+        fn must be an async callable that takes (messages, model)."""
+        from agentfuse.providers.pricing import ModelPricingEngine
+        from agentfuse.providers.tokenizer import TokenCounterAdapter
+
+        pricing = ModelPricingEngine()
+        tokenizer = TokenCounterAdapter()
+        prov = provider or self.provider
+        call_retry_cost = 0.0
+        attempt = 0
+        current_model = model
+
+        while attempt < self.max_attempts:
+            try:
+                return await fn(messages, current_model)
+            except Exception as e:
+                classified = classify_error(e, prov)
+                if not classified.retryable:
+                    raise
+
+                attempt += 1
+                logger.info("Async retry %d/%d: %s, model=%s",
+                            attempt, self.max_attempts, classified.error_type, current_model)
+
+                if attempt >= self.max_attempts:
+                    raise
+
+                token_count = tokenizer.count_messages_tokens(messages, current_model)
+                retry_cost = pricing.input_cost(current_model, token_count)
+                call_retry_cost += retry_cost
+                self.retry_cost_spent += retry_cost
+
+                if call_retry_cost > self.max_retry_cost:
+                    raise RetryBudgetExhausted(retry_cost_spent=call_retry_cost)
+
+                current_model = self.RETRY_DOWNGRADE_MAP.get(current_model, current_model)
+
+                wait_time = 2 ** attempt
+                if classified.retry_after and classified.retry_after > wait_time:
+                    wait_time = min(classified.retry_after, 60)
+
+                await asyncio.sleep(wait_time)

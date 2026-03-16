@@ -127,11 +127,13 @@ def _classify_openai(exc, exc_type, exc_msg) -> ClassifiedError:
 def _classify_anthropic(exc, exc_type, exc_msg) -> ClassifiedError:
     status = getattr(exc, "status_code", None)
 
+    retry_after = ClassifiedError.extract_retry_after(exc)
+
     if exc_type == "OverloadedError" or status == 529:
-        return ClassifiedError("overloaded", retryable=True, status_code=529, provider="anthropic", message=str(exc))
+        return ClassifiedError("overloaded", retryable=True, status_code=529, provider="anthropic", message=str(exc), retry_after=retry_after)
 
     if exc_type == "RateLimitError" or status == 429:
-        return ClassifiedError("rate_limit", retryable=True, status_code=429, provider="anthropic", message=str(exc))
+        return ClassifiedError("rate_limit", retryable=True, status_code=429, provider="anthropic", message=str(exc), retry_after=retry_after)
 
     if exc_type == "AuthenticationError" or status == 401:
         return ClassifiedError("auth", retryable=False, status_code=401, provider="anthropic", message=str(exc))

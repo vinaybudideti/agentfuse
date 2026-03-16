@@ -89,16 +89,19 @@ class ModelPricingEngine:
         if provider == "anthropic" and (cached_read > 0 or cached_write > 0):
             # Anthropic: separate billing for each component
             uncached_input = total_input - cached_read - cached_write
-            cost = (
+            input_c = (
                 self.input_cost(model, max(0, uncached_input))
                 + self.cached_input_cost(model, cached_read)
                 + self.cache_write_cost(model, cached_write)
-                + self.output_cost(model, total_output)
             )
-            # Overflow pricing for large context
+            output_c = self.output_cost(model, total_output)
+
+            # Anthropic overflow: >200K total input → 2x input, 1.5x output
             if total_input > 200_000:
-                cost *= 2  # Simplified: all components doubled
-            return cost
+                input_c *= 2
+                output_c *= 1.5
+
+            return input_c + output_c
 
         # OpenAI / Gemini / others: uniform rate
         return self.total_cost(model, total_input, total_output)

@@ -74,9 +74,12 @@ class BudgetEngine:
         _current_run_id.set(run_id)
 
     def _get_async_lock(self) -> asyncio.Lock:
-        """Create asyncio.Lock lazily — can't create at __init__ time outside event loop."""
+        """Create asyncio.Lock lazily — can't create at __init__ time outside event loop.
+        Uses _sync_lock to prevent race between concurrent async tasks."""
         if self._async_lock is None:
-            self._async_lock = asyncio.Lock()
+            with self._sync_lock:
+                if self._async_lock is None:
+                    self._async_lock = asyncio.Lock()
         return self._async_lock
 
     def check_and_act(self, estimated_cost, messages):

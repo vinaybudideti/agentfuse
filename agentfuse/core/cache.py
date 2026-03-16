@@ -112,6 +112,10 @@ class TwoTierCacheMiddleware:
         self._faiss_vectors: list[np.ndarray] = []  # store vectors for re-indexing on eviction
         self._faiss_lock = threading.Lock()
 
+        # Thresholds for backward-compatible check() method
+        self._direct_threshold = 0.85
+        self._adapt_threshold = 0.70
+
     def _get_embedder(self):
         if self._embedder is None:
             with self._embedder_lock:
@@ -411,7 +415,7 @@ class TwoTierCacheMiddleware:
         except Exception as e:
             logger.warning("Cache store failed: %s", e)
 
-    # Thresholds for backward-compatible check method
+    # Class-level defaults (also set in __init__ for safety)
     _direct_threshold = 0.85
     _adapt_threshold = 0.70
 

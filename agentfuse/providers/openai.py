@@ -59,15 +59,20 @@ def wrap_openai(budget_usd: float, run_id: str = None,
     def intercepted_create(*args, **kwargs):
         messages = kwargs.get("messages", [])
         call_model = kwargs.get("model", engine.model)
+        temperature = kwargs.get("temperature", 0.0)
+        tools = kwargs.get("tools", None)
 
-        # Step 1: Check cache
-        from agentfuse.core.keys import build_cache_key
-        cache_key = build_cache_key(messages, call_model)
-        cache_result = cache.check(cache_key, call_model, engine)
+        # Step 1: Check cache using NEW two-tier lookup API
+        cache_result = cache.lookup(
+            model=call_model,
+            messages=messages,
+            temperature=temperature,
+            tools=tools,
+        )
         if isinstance(cache_result, CacheHit):
             return _mock_openai_response(cache_result.response, call_model)
 
-        # Step 2: Check budget (estimated cost — will reconcile after call)
+        # Step 2: Check budget (estimated cost)
         token_count = tokenizer.count_messages_tokens(messages, call_model)
         est_cost = pricing.input_cost(call_model, token_count)
         messages, active_model = engine.check_and_act(est_cost, messages)
@@ -83,12 +88,18 @@ def wrap_openai(budget_usd: float, run_id: str = None,
             actual_cost = pricing.total_cost_normalized(active_model, normalized)
             engine.record_cost(actual_cost)
 
-        # Step 5: Store in cache
+        # Step 5: Store in cache using NEW store API
         try:
             if result.choices and result.choices[0].message.content:
                 response_text = result.choices[0].message.content
                 engine.add_partial_result(response_text)
-                cache.store(cache_key, response_text, active_model)
+                cache.store(
+                    model=active_model,
+                    messages=messages,
+                    response=response_text,
+                    temperature=temperature,
+                    tools=tools,
+                )
         except (AttributeError, IndexError):
             pass
 
