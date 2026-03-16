@@ -145,3 +145,12 @@ def test_extract_text_langchain_generations():
     )
     result = _extract_text(response)
     assert result == "Generated text"
+
+
+def test_langchain_no_inner_raises():
+    """AgentFuseChatModel without inner model must raise RuntimeError."""
+    from agentfuse.integrations.langchain import AgentFuseChatModel
+    import pytest
+    model = AgentFuseChatModel(budget=5.0)
+    with pytest.raises(RuntimeError, match="No inner model"):
+        model.invoke([{"role": "user", "content": "hi"}])
