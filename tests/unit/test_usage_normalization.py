@@ -79,3 +79,40 @@ def test_total_tokens_property():
     """total_tokens must be sum of input + output."""
     result = NormalizedUsage(total_input_tokens=100, total_output_tokens=200)
     assert result.total_tokens == 300
+
+
+def test_anthropic_no_cache_fields():
+    """Anthropic usage without cache fields must still work."""
+    usage = SimpleNamespace(
+        input_tokens=100,
+        output_tokens=200,
+    )
+    result = extract_usage("anthropic", usage)
+    assert result.total_input_tokens == 100
+    assert result.total_output_tokens == 200
+
+
+def test_openai_no_details():
+    """OpenAI usage without details must still work."""
+    usage = SimpleNamespace(
+        prompt_tokens=500,
+        completion_tokens=300,
+    )
+    result = extract_usage("openai", usage)
+    assert result.total_input_tokens == 500
+    assert result.total_output_tokens == 300
+    assert result.cached_input_tokens == 0
+    assert result.reasoning_tokens == 0
+
+
+def test_gemini_camel_case_fields():
+    """Gemini with camelCase field names must work."""
+    usage = SimpleNamespace(
+        promptTokenCount=400,
+        candidatesTokenCount=200,
+        thoughtsTokenCount=100,
+        cachedContentTokenCount=50,
+    )
+    result = extract_usage("gemini", usage)
+    assert result.total_input_tokens == 400
+    assert result.total_output_tokens == 300  # 200 + 100
