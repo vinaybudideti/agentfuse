@@ -174,3 +174,10 @@ class ModelRegistry:
     def list_models(self) -> list[str]:
         """List all known model names."""
         return sorted(set(list(self._models.keys()) + list(self._overrides.keys())))
+
+    def get_provider(self, model: str) -> str:
+        """Get the provider name for a model."""
+        pricing = self.get_pricing(model)
+        if "provider" in pricing:
+            return pricing["provider"]
+        return self._detect_provider(model)
