@@ -5,10 +5,10 @@
 ![PyPI](https://img.shields.io/pypi/v/agentfuse-runtime)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
-![Tests](https://img.shields.io/badge/tests-260%20passing-brightgreen)
-![Coverage](https://img.shields.io/badge/core%20coverage-86%25-green)
+![Tests](https://img.shields.io/badge/tests-439%20passing-brightgreen)
+![Coverage](https://img.shields.io/badge/core%20coverage-88%25-green)
 
-AgentFuse is a production-grade Python SDK that enforces per-run LLM budgets with semantic caching, graduated cost policies, and unified observability across OpenAI, Anthropic, Google Gemini, DeepSeek, Mistral, and 10+ providers.
+AgentFuse is a production-grade Python SDK that optimizes LLM costs through intelligent model routing, semantic caching, graduated budget enforcement, and unified observability across OpenAI, Anthropic, Google Gemini, DeepSeek, Mistral, and 12+ providers. Built with insights from LiteLLM, Portkey, and Helicone architectures, and backed by research from 8 academic papers.
 
 ## The Problem
 
@@ -24,11 +24,13 @@ AgentFuse intercepts every LLM call with a two-tier semantic cache (Redis L1 exa
 |---|---|
 | Cache hit rate | 87.5% on repeated and paraphrased prompts |
 | Cost reduction | 71.8% ($0.24 vs $0.87 for same workload) |
+| Model routing savings | Up to 85% via intelligent complexity routing (RouteLLM-inspired) |
 | Tokens saved | 179,445 per 100 calls |
-| Integration effort | 2 lines of code |
-| Test suite | 260 unit tests, 86% core coverage |
+| Integration effort | 1 line of code (`completion()` gateway) |
+| Test suite | 439 unit tests, 88% core coverage |
 | Models supported | 22+ with hot-reloadable pricing |
 | Providers supported | 12 (OpenAI, Anthropic, Gemini, DeepSeek, Mistral, Groq, Together, xAI, Fireworks, OpenRouter, Ollama, vLLM) |
+| Production subsystems | 26 (cache, budget, routing, retry, dedup, alerting, anomaly detection, etc.) |
 
 ## Quickstart
 
@@ -36,6 +38,27 @@ AgentFuse intercepts every LLM call with a two-tier semantic cache (Redis L1 exa
 pip install agentfuse-runtime
 ```
 
+```python
+from agentfuse import completion
+
+# One function for ANY provider — budget-enforced, cached, cost-tracked
+response = completion(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "What is Python?"}],
+    budget_id="my_agent",
+    budget_usd=5.00,
+)
+
+# Works with ANY provider — just change the model name:
+response = completion(model="claude-sonnet-4-6", messages=[...], budget_id="run_2", budget_usd=3.00)
+response = completion(model="gemini-2.5-pro", messages=[...], budget_id="run_3", budget_usd=1.00)
+response = completion(model="deepseek/deepseek-chat", messages=[...])
+
+# Enable intelligent routing — sends simple queries to cheap models automatically:
+response = completion(model="gpt-4o", messages=[...], auto_route=True)
+```
+
+**Legacy monkey-patch API** (still supported):
 ```python
 from agentfuse import wrap_openai
 import openai

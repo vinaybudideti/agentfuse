@@ -1,59 +1,75 @@
 # AgentFuse Build Progress
 
-## Current State: v0.2.0 (Production Rebuild Complete)
+## Current State: v0.2.0 — Production-Grade
 
-**175 unit tests, all green | 80% core module coverage**
+**439 unit tests | 47 exports | 88% core coverage | 128 commits | ALL GREEN**
 
-## Completed Phases
+GitHub: https://github.com/vinaybudideti/agentfuse
 
-### Phase 0 — Fix 3 Critical Production Bugs
-- Cache key design: SHA-256 with model, cross-model contamination impossible
-- Token counting: o200k_base for GPT-4o/o-series, safety margins for all providers
-- Thread safety: instance-level locks + ContextVar for per-run isolation
+## Completed Phases (0-8)
 
-### Phase 1 — ModelRegistry + ProviderRouter
-- Hot-reloadable registry with 20+ models, LiteLLM remote refresh
-- 4-tier lookup: overrides → exact → ft:prefix 2x → warn+zero
-- ProviderRouter with 10 OpenAI-compatible providers + Anthropic native
+All original 8 phases from CLAUDE_TASKS.md are complete. See `_project/BUILD_LOG.md` for details.
 
-### Phase 2 — Two-Tier Semantic Cache
-- Redis L1 exact match + FAISS L2 semantic search
-- redis/langcache-embed-v2 embeddings, 0.92 similarity threshold
-- Cross-model prevention via key design + model prefix post-filter
-- Tool-use queries never go through L2, temperature > 0.5 skips cache
+- Phase 0: Fixed 3 critical production bugs (cache key, token counting, thread safety)
+- Phase 1: ModelRegistry + ProviderRouter (22+ models, 12 providers)
+- Phase 2: Two-tier semantic cache (Redis L1 + FAISS L2)
+- Phase 3: Atomic budget enforcement (Redis Lua + InMemory)
+- Phase 4: Framework integrations (LangChain, CrewAI, OpenAI Agents SDK)
+- Phase 5: Unified error handling (classify_error across 3+ providers)
+- Phase 6: Observability (OTel spans, structlog, Prometheus metrics)
+- Phase 7: Final test suite rebuild (behavioral tests, no construction-only)
+- Phase 8: PyPI v0.2.0 release
 
-### Phase 3 — Atomic Budget Enforcement
-- RedisBudgetStore with Lua scripts (microdollar precision)
-- InMemoryBudgetStore with TTLCache + RLock + async variant
-- NormalizedUsage: unified extraction (Anthropic input_tokens fix)
+## Deep Research + Production Hardening
 
-### Phase 4 — Framework Integrations
-- LangChain: BaseChatModel wrapper (callbacks are observe-only)
-- CrewAI: create_agentfuse_hooks with side-channel cache
-- OpenAI Agents SDK: AgentFuseModel + AgentFuseModelProvider
+### Critical Bugs Fixed
+- Anthropic billing: `total_cost_normalized()` with per-component rates (cache_read 0.1x, cache_write 1.25x)
+- Streaming support: cost recording + caching for `stream=True` calls
+- All 5 framework integrations: proper cost recording + new cache API
+- Multi-run isolation: ContextVar routing instead of monkey-patch overwrite
+- Truncated responses (`finish_reason="length"`) never cached
+- L2 cache: exact model match prevents cross-family contamination
+- L2 cache: tool_use isolation prevents tool response for text query
+- Redis circuit breaker: stops trying after 5 consecutive failures
+- FAISS NaN/inf validation: prevents C++ segfault
+- Streaming content memory cap: 500KB max per stream
 
-### Phase 5 — Unified Error Handling
-- classify_error() across OpenAI, Anthropic, Google GenAI, httpx
-- OpenAI insufficient_quota 429 is NOT retryable
-- Anthropic OverloadedError 529 is always retryable
-- agentfuse_retry decorator with tenacity
+### New Subsystems Built
+1. `completion()` gateway — unified LiteLLM-style entry for ALL providers
+2. `MiddlewarePipeline` — composable Portkey-style request/response stages
+3. `TokenPatternAdapter` — auto-discovers LLM usage field names (novel)
+4. `IntelligentModelRouter` — RouteLLM-inspired complexity routing (ICLR 2025)
+5. `ModelLoadBalancer` — round-robin/least-latency across API keys
+6. `RequestDeduplicator` — coalesces identical in-flight requests
+7. `RequestOptimizer` — removes empty/duplicate messages before sending
+8. `ResponseValidator` — prevents caching garbage/refusal/truncated responses
+9. `CostAnomalyDetector` — EMA + z-score statistical spike detection
+10. `AdaptiveSimilarityThreshold` — auto-tunes L2 cache accuracy (novel)
+11. `TokenBucketRateLimiter` — per-tenant rate limiting
+12. `GCRARateLimiter` — Helicone-style GCRA smooth rate limiting
+13. `CostAlertManager` — threshold alerts with webhook delivery
+14. `CostTracker` — real-time in-memory cost aggregation
+15. `SpendLedger` — persistent JSONL append-only cost tracking
+16. `BatchEligibilityDetector` — auto-detect batch API discount opportunities
+17. `CacheQualityTracker` — per-entry quality scoring + model invalidation
+18. `FallbackModelChain` — automatic model switching on failure
 
-### Phase 6 — Observability
-- OTel GenAI spans (semconv v1.40)
-- structlog JSON logging with trace context injection
-- Prometheus metrics: cache hits, cost, budget, errors, fallbacks
+### Research Applied (from LiteLLM/Portkey/Helicone analysis doc)
+1. Cache threshold: 0.92 → 0.90 (GPT Semantic Cache paper)
+2. L2 bounds: skip >10 msgs or >32K chars (Portkey insight)
+3. Multi-turn: last 5 user messages (ContextCache paper)
+4. Sliding TTL on cache hits (consensus recommendation)
+5. GCRA rate limiting (Helicone architecture)
+6. Spend tracking out of hot path (LiteLLM PostgreSQL lesson)
+7. Full jitter backoff (AWS best practice)
+8. Batch detection for 50% API discounts (no gateway does this)
+9. Quality scoring for cache poisoning defense (arxiv 2601.23088)
 
-### Phase 7 — Final Test Suite
-- 175 unit tests, all behavioral (no construction-only tests)
-- 80% core module coverage
-
-### Phase 8 — PyPI v0.2.0
-- pyproject.toml v0.2.0, Python >=3.11
-- Full public API in __init__.py
-- CHANGELOG.md, updated README
-
-## Improvement Loop Progress
-- 10 loop iterations completed
-- Fixed: L2 eviction data loss, 90% budget policy, store_compat vector tracking
-- Added: Mistral/DeepSeek/Grok/Llama tokenization, o3/gpt-4.1 downgrade paths
-- Added: get_stats(), get_budget_summary(), CHANGELOG.md
+## Next Steps
+- Pending web research answers in `_project/RESEARCH_QUESTIONS.md`
+- Verify/update model pricing if changed
+- Verify tiktoken encodings for newest models
+- Consider Redis native vector search (RediSearch) as unified L1+L2
+- Implement RouteLLM MF classifier (currently using heuristics)
+- Add FastAPI proxy server mode (like LiteLLM proxy)
+- TypeScript SDK

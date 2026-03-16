@@ -227,3 +227,37 @@ Final state: 257 unit tests, 86% core coverage, 88 commits
 7. CostTracker — unified real-time cost aggregation
 
 Final state: 380 tests (336 unit + 44 old), 88% core coverage, 110 commits
+
+## Architecture Rebuild — Gateway + Middleware + Research
+**Date:** 2026-03-16
+
+### New Subsystems
+1. `completion()` gateway — unified LiteLLM-style entry for ALL providers
+2. `MiddlewarePipeline` — composable Portkey-style request/response stages
+3. `TokenPatternAdapter` — auto-discovers LLM usage field names
+4. `IntelligentModelRouter` — RouteLLM-inspired complexity routing
+5. `ModelLoadBalancer` — round-robin/least-latency across API keys
+6. `RequestDeduplicator` — coalesces identical in-flight requests
+7. `RequestOptimizer` — removes empty/duplicate messages
+8. `SpendLedger` — persistent JSONL cost tracking (survives restart)
+9. `GCRARateLimiter` — Helicone-style GCRA rate limiting
+10. `BatchEligibilityDetector` — auto-detect batch API discounts
+11. `CacheQualityTracker` — per-entry quality scoring
+
+### Critical Architecture Fixes
+- Multi-run isolation: ContextVar routing (not monkey-patch overwrite)
+- Truncated responses (finish_reason="length") never cached
+- Full jitter backoff (AWS best practice)
+- Streaming cost recording for stream=True calls
+
+### Research Doc Applied (LiteLLM/Portkey/Helicone analysis)
+- Cache threshold 0.90 (GPT Semantic Cache paper)
+- L2 bounds (Portkey insight)
+- Multi-turn caching (ContextCache paper)
+- Sliding TTL on cache hits
+- GCRA rate limiting (Helicone)
+- Batch detection (no gateway does this)
+- Quality scoring (cache poisoning defense)
+
+Final state: 439 unit tests, 47 exports, 88% core coverage, 128 commits
+All pushed to github.com/vinaybudideti/agentfuse
