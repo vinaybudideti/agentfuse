@@ -22,7 +22,8 @@ def test_claude_sonnet_total():
     assert cost == 18.00
 
 
-def test_unsupported_model_raises():
+def test_unsupported_model_returns_zero():
+    """Unknown models return zero cost (no crash) — backed by ModelRegistry."""
     p = ModelPricingEngine()
-    with pytest.raises(ValueError):
-        p.input_cost("fake-model-xyz", 1000)
+    cost = p.input_cost("fake-model-xyz", 1000)
+    assert cost == 0.0
