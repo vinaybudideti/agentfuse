@@ -183,3 +183,21 @@ Major improvements:
 
 Final state: 235 unit tests, 85% core coverage, 73 commits
 All pushed to github.com/vinaybudideti/agentfuse
+
+## Loop Iterations 50-65
+**Date:** 2026-03-16
+
+Major improvements:
+- Fixed README quickstart examples (budget → budget_usd)
+- Fixed GPT-4.1 tokenizer encoding (cl100k → o200k_base)
+- Added FEATURE_IDEAS.md with future roadmap
+- Added helpful ImportError messages for wrap_openai/wrap_anthropic
+- Prevented double-wrapping in monkey-patch functions
+- Added full state machine progression test
+- Added version + public API verification tests
+- Added httpx/Google error classifier tests (90% coverage)
+- Added receipt edge cases (zero budget, failed status)
+- Added memory store get_all + multi-run isolation tests (94% coverage)
+- Added L1 cache TTL/expiry + store skip tests
+
+Final state: 257 unit tests, 86% core coverage, 88 commits
