@@ -86,8 +86,14 @@ def build_l2_metadata_filter(model: str, tools: Optional[list] = None) -> dict:
         prefix = "anthropic"
     elif model.startswith("gemini"):
         prefix = "gemini"
+    elif model.startswith("mistral"):
+        prefix = "mistral"
+    elif model.startswith("grok"):
+        prefix = "xai"
+    elif model.startswith(("llama", "meta-llama")):
+        prefix = "meta"
     else:
-        prefix = model.split("/")[0] if "/" in model else model[:8]
+        prefix = model.split("/")[0] if "/" in model else model.split("-")[0]
 
     return {
         "model_prefix": prefix,

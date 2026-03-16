@@ -95,3 +95,21 @@ def test_semantic_content_with_multimodal():
     ]
     result = extract_semantic_content(msgs)
     assert "Describe this" in result
+
+
+def test_l2_metadata_mistral():
+    """Mistral models must have 'mistral' prefix."""
+    meta = build_l2_metadata_filter("mistral-large-latest")
+    assert meta["model_prefix"] == "mistral"
+
+
+def test_l2_metadata_grok():
+    """Grok models must have 'xai' prefix."""
+    meta = build_l2_metadata_filter("grok-4.1-fast")
+    assert meta["model_prefix"] == "xai"
+
+
+def test_l2_metadata_llama():
+    """Llama models must have 'meta' prefix."""
+    meta = build_l2_metadata_filter("llama-3.3-70b")
+    assert meta["model_prefix"] == "meta"
