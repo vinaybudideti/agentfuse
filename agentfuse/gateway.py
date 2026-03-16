@@ -71,6 +71,7 @@ def completion(
     stream: bool = False,
     api_key: Optional[str] = None,
     tenant_id: Optional[str] = None,
+    auto_route: bool = False,
     **kwargs,
 ) -> Any:
     """
@@ -101,13 +102,21 @@ def completion(
     # Resolve provider
     provider, base_url = resolve_provider(model)
 
-    # Step 0: Optimize request (remove empty/duplicate messages)
+    # Step 0a: Optimize request (remove empty/duplicate messages)
     from agentfuse.core.request_optimizer import RequestOptimizer
     optimizer = RequestOptimizer(_pricing, _tokenizer)
     messages, opt_report = optimizer.optimize(messages, model)
     if opt_report.messages_removed > 0:
         logger.info("Request optimized: saved %d tokens ($%.6f)",
                      opt_report.estimated_tokens_saved, opt_report.estimated_cost_saving_usd)
+
+    # Step 0b: Intelligent model routing (RouteLLM-inspired)
+    # Routes simple queries to cheaper models for 70%+ cost savings
+    if auto_route:
+        from agentfuse.core.model_router import IntelligentModelRouter
+        router = IntelligentModelRouter()
+        model = router.route(model, messages)
+        provider, base_url = resolve_provider(model)  # re-resolve after routing
 
     # Get or create budget engine
     engine = _get_engine(budget_id, budget_usd, model) if budget_id else None

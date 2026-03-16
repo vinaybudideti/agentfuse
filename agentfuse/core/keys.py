@@ -65,13 +65,21 @@ def build_l1_cache_key(
     return f"agentfuse:v2:cache:{digest}"
 
 
-def extract_semantic_content(messages: list[dict]) -> str:
-    """Extract only user-facing content for semantic embedding (L2 cache)."""
-    return " ".join(
+def extract_semantic_content(messages: list[dict], max_user_messages: int = 5) -> str:
+    """Extract user-facing content for semantic embedding (L2 cache).
+
+    Per ContextCache paper (arxiv 2506.22791): embed the last 3-5 user messages
+    (not assistant messages) for multi-turn context. Single-turn uses only the
+    latest user message. This yields 10.9% precision improvement over single-turn.
+    """
+    user_contents = [
         _extract_text(m.get("content", ""))
         for m in messages
         if m.get("role") == "user" and isinstance(m.get("content"), (str, list))
-    )
+    ]
+    # Take last N user messages for multi-turn context
+    recent = user_contents[-max_user_messages:]
+    return " ".join(recent)
 
 
 def build_l2_metadata_filter(model: str, tools: Optional[list] = None) -> dict:

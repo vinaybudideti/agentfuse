@@ -169,6 +169,8 @@ class TwoTierCacheMiddleware:
         l1_key = build_l1_cache_key(model, messages, temperature, tools, tenant_id=tenant_id)
         l1_result = self._l1_get(l1_key)
         if l1_result is not None:
+            # Sliding TTL: refresh expiry on cache hit (popular entries stay longer)
+            self._l1_set(l1_key, l1_result, self._jittered_ttl())
             return CacheHit(tier=1, response=l1_result, similarity=1.0)
 
         # L2 semantic search — skip when not beneficial
