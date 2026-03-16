@@ -66,8 +66,11 @@ class TwoTierCacheMiddleware:
     Falls back to local TTLCache when Redis is unavailable.
     """
 
-    TIER2_HIGH_SIM_THRESHOLD = 0.92
-    TIER2_ADAPT_THRESHOLD = 0.88
+    # Research-backed: GPT Semantic Cache paper (arxiv 2411.05276) found 0.90
+    # optimal — yields 61-68% hit rate with >97% positive hit rate and <1% false positives.
+    # Portkey uses 0.95, Redis SemanticCache defaults to 0.90.
+    TIER2_HIGH_SIM_THRESHOLD = 0.90
+    TIER2_ADAPT_THRESHOLD = 0.85
     DEFAULT_TTL = 86400  # 24 hours
     TTL_JITTER_PCT = 0.10  # ±10%
 
@@ -168,9 +171,19 @@ class TwoTierCacheMiddleware:
         if l1_result is not None:
             return CacheHit(tier=1, response=l1_result, similarity=1.0)
 
-        # L2 semantic search — NEVER for tool_use queries
+        # L2 semantic search — skip when not beneficial
         if tools:
             return CacheMiss(reason="tool_use queries skip L2")
+
+        # Portkey insight: semantic caching only works well for short requests.
+        # Longer contexts have too many semantic dimensions for reliable matching.
+        MAX_L2_MESSAGES = 10
+        MAX_L2_CONTENT_CHARS = 32_000  # ~8K tokens
+        if len(messages) > MAX_L2_MESSAGES:
+            return CacheMiss(reason=f"too many messages ({len(messages)}) for L2")
+        total_chars = sum(len(str(m.get("content", ""))) for m in messages)
+        if total_chars > MAX_L2_CONTENT_CHARS:
+            return CacheMiss(reason="content too long for L2 semantic matching")
 
         if self._faiss_index is None or self._faiss_index.ntotal == 0:
             return CacheMiss(reason="L2 index empty")
