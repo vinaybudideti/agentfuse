@@ -10,9 +10,12 @@ Handles both streaming and non-streaming responses.
 Uses extract_usage() for accurate cache billing.
 """
 
+import threading
+
 from agentfuse.providers.mock_responses import MockAnthropicResponse
 
-# Module-level state
+# Module-level state — protected by _wrap_lock
+_wrap_lock = threading.Lock()
 _budget_engines = {}  # run_id -> BudgetEngine
 _cache_middleware = None
 _original_anthropic_create = None  # store original to prevent double-wrapping
@@ -51,12 +54,13 @@ def wrap_anthropic(budget_usd: float, run_id: str = None,
     pricing = ModelPricingEngine()
     tokenizer = TokenCounterAdapter()
 
-    _budget_engines[run_id] = engine
+    with _wrap_lock:
+        _budget_engines[run_id] = engine
 
-    global _original_anthropic_create
-    client = anthropic_sdk.Anthropic()
-    if _original_anthropic_create is None:
-        _original_anthropic_create = client.messages.create
+        global _original_anthropic_create
+        client = anthropic_sdk.Anthropic()
+        if _original_anthropic_create is None:
+            _original_anthropic_create = client.messages.create
     original_create = _original_anthropic_create
 
     def intercepted_create(*args, **kwargs):
@@ -123,18 +127,22 @@ def _record_and_cache_anthropic(result, model, engine, pricing, cache,
 def _wrap_anthropic_stream(stream, model, engine, pricing,
                             cache, messages, temperature, tools):
     """Wrap a streaming Anthropic response to track cost and collect content."""
+    MAX_COLLECTED_CHARS = 500_000  # 500KB max to prevent memory spike
     collected_content = []
+    collected_chars = 0
     token_count = 0
 
     def stream_wrapper():
-        nonlocal token_count
+        nonlocal token_count, collected_chars
         for event in stream:
             try:
                 if hasattr(event, "delta") and hasattr(event.delta, "text"):
                     text = event.delta.text
                     if text:
-                        collected_content.append(text)
                         token_count += max(1, int(len(text) / 3.5))
+                        if collected_chars < MAX_COLLECTED_CHARS:
+                            collected_content.append(text)
+                            collected_chars += len(text)
             except (AttributeError, IndexError):
                 pass
             yield event
@@ -143,7 +151,7 @@ def _wrap_anthropic_stream(stream, model, engine, pricing,
         try:
             output_cost = pricing.output_cost(model, token_count)
             input_token_est = sum(
-                len(m.get("content", "")) // 4 + 3
+                len(str(m.get("content", ""))) // 4 + 3
                 for m in messages if isinstance(m, dict)
             )
             input_cost = pricing.input_cost(model, input_token_est)

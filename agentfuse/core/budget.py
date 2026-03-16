@@ -64,6 +64,7 @@ class BudgetEngine:
         self.state = BudgetState.NORMAL
         self.compression_applied = False
         self.partial_results = []
+        self._estimation_drift = 0.0  # cumulative (estimated - actual) for observability
 
         # Instance-level locks — each BudgetEngine gets its own lock
         # so different runs don't serialize through a shared lock
@@ -147,17 +148,14 @@ class BudgetEngine:
             self.spent += cost_usd
 
     def reconcile_cost(self, estimated_usd: float, actual_usd: float):
-        """Adjust budget after actual cost is known.
+        """Adjust budget tracking after actual cost is known.
 
-        Call this after an API response to correct the budget for the
-        difference between estimated (pre-call) and actual (post-call) cost.
-        This prevents budget drift from accumulating over many calls.
+        The estimate was used in check_and_act for threshold decisions.
+        The actual cost is what gets recorded. This method tracks the
+        cumulative estimation error for observability.
         """
         with self._sync_lock:
-            # The estimated cost was already factored into check_and_act's
-            # percentage calculation but NOT added to spent. Only actual is.
-            # No adjustment needed — record_cost handles the actual.
-            pass
+            self._estimation_drift += (estimated_usd - actual_usd)
 
     async def record_cost_async(self, cost_usd):
         """Async version of record_cost."""

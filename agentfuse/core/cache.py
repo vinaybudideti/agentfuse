@@ -125,10 +125,14 @@ class TwoTierCacheMiddleware:
         return self._embedder
 
     def _embed(self, text: str) -> np.ndarray:
-        """Returns L2-normalized numpy vector."""
+        """Returns L2-normalized numpy vector. Validates for NaN/inf to prevent FAISS segfault."""
         model = self._get_embedder()
         vec = model.encode([text], normalize_embeddings=True)
-        return vec[0].astype(np.float32)
+        result = vec[0].astype(np.float32)
+        if not np.isfinite(result).all():
+            logger.warning("Embedding contains NaN/inf — replacing with zeros")
+            result = np.zeros(self._faiss_dim, dtype=np.float32)
+        return result
 
     def _should_skip_cache(self, temperature: float, tools: Optional[list] = None) -> Optional[str]:
         """Returns skip reason if this request should never be cached."""
@@ -188,8 +192,14 @@ class TwoTierCacheMiddleware:
                     continue
                 entry = self._faiss_metadata[idx]
 
-                # Post-filter: model prefix must match
+                # Post-filter: model prefix AND exact model must match
+                # Prevents serving gpt-4-turbo response for gpt-4o query
                 if entry.model_prefix != meta_filter["model_prefix"]:
+                    continue
+                if entry.model != model:
+                    continue
+                # Never return tool-use cached response for non-tool query
+                if entry.has_tools != meta_filter["has_tools"]:
                     continue
 
                 if score >= self.TIER2_HIGH_SIM_THRESHOLD:
@@ -272,29 +282,49 @@ class TwoTierCacheMiddleware:
             new_index.add(vecs)
         self._faiss_index = new_index
 
-    # --- L1 helpers ---
+    # --- L1 helpers with Redis circuit breaker ---
+
+    _redis_failures: int = 0
+    _REDIS_CIRCUIT_OPEN_THRESHOLD: int = 5  # disable after 5 consecutive failures
+
+    def _redis_available(self) -> bool:
+        """Check if Redis should be tried (circuit breaker pattern)."""
+        return self._redis is not None and self._redis_failures < self._REDIS_CIRCUIT_OPEN_THRESHOLD
+
+    def _redis_success(self):
+        """Reset circuit breaker on successful Redis operation."""
+        self._redis_failures = 0
+
+    def _redis_failure(self):
+        """Increment circuit breaker counter. After threshold, stop trying Redis."""
+        self._redis_failures += 1
+        if self._redis_failures >= self._REDIS_CIRCUIT_OPEN_THRESHOLD:
+            logger.warning("Redis circuit breaker OPEN — falling back to local cache after %d failures",
+                           self._redis_failures)
 
     def _l1_get(self, key: str) -> Optional[str]:
-        """Try Redis first, fall back to local cache."""
-        if self._redis:
+        """Try Redis first (with circuit breaker), fall back to local cache."""
+        if self._redis_available():
             try:
                 val = self._redis.get(key)
+                self._redis_success()
                 if val is not None:
                     return val
             except Exception:
-                pass
+                self._redis_failure()
 
         with self._local_l1_lock:
             return self._local_l1.get(key)
 
     def _l1_set(self, key: str, value: str, ttl: int = None):
-        """Store in Redis and local cache."""
+        """Store in Redis (with circuit breaker) and local cache."""
         ttl = ttl or self.DEFAULT_TTL
-        if self._redis:
+        if self._redis_available():
             try:
                 self._redis.setex(key, ttl, value)
+                self._redis_success()
             except Exception:
-                pass
+                self._redis_failure()
 
         with self._local_l1_lock:
             self._local_l1[key] = value

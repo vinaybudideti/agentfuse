@@ -9,9 +9,12 @@ Usage (2 lines):
 Handles both streaming and non-streaming responses.
 """
 
+import threading
+
 from agentfuse.providers.mock_responses import MockOpenAIResponse
 
-# Module-level state
+# Module-level state — protected by _wrap_lock
+_wrap_lock = threading.Lock()
 _budget_engines = {}  # run_id -> BudgetEngine
 _cache_middleware = None
 _original_openai_create = None  # store original to prevent double-wrapping
@@ -48,12 +51,13 @@ def wrap_openai(budget_usd: float, run_id: str = None,
     pricing = ModelPricingEngine()
     tokenizer = TokenCounterAdapter()
 
-    _budget_engines[run_id] = engine
+    with _wrap_lock:
+        _budget_engines[run_id] = engine
 
-    global _original_openai_create
-    if _original_openai_create is None:
-        _original_openai_create = openai.chat.completions.create
-    original_create = _original_openai_create
+        global _original_openai_create
+        if _original_openai_create is None:
+            _original_openai_create = openai.chat.completions.create
+        original_create = _original_openai_create
 
     def intercepted_create(*args, **kwargs):
         messages = kwargs.get("messages", [])
@@ -119,27 +123,31 @@ def _record_and_cache_openai(result, model, engine, pricing, cache,
 def _wrap_openai_stream(stream, model, engine, pricing,
                          cache, messages, temperature, tools):
     """Wrap a streaming OpenAI response to track cost and collect content."""
+    MAX_COLLECTED_CHARS = 500_000  # 500KB max to prevent memory spike
     collected_content = []
+    collected_chars = 0
     token_count = 0
 
     def stream_wrapper():
-        nonlocal token_count
+        nonlocal token_count, collected_chars
         for chunk in stream:
             try:
                 if hasattr(chunk, "choices") and chunk.choices:
                     delta = chunk.choices[0].delta
                     if hasattr(delta, "content") and delta.content:
-                        collected_content.append(delta.content)
                         token_count += max(1, int(len(delta.content) / 3.5))
+                        if collected_chars < MAX_COLLECTED_CHARS:
+                            collected_content.append(delta.content)
+                            collected_chars += len(delta.content)
             except (AttributeError, IndexError):
                 pass
             yield chunk
 
-        # After stream ends: record cost and cache
+        # After stream ends: record cost using correct model
         try:
             output_cost = pricing.output_cost(model, token_count)
             input_token_est = sum(
-                len(m.get("content", "")) // 4 + 4
+                len(str(m.get("content", ""))) // 4 + 4
                 for m in messages if isinstance(m, dict)
             )
             input_cost = pricing.input_cost(model, input_token_est)
