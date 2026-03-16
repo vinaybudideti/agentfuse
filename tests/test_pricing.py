@@ -17,9 +17,10 @@ def test_gpt4o_output_cost():
 
 
 def test_claude_sonnet_total():
+    """Anthropic overflow pricing: 1M input (>200K) → 2x input + 1.5x output."""
     p = ModelPricingEngine()
     cost = p.total_cost("claude-sonnet-4-6", 1_000_000, 1_000_000)
-    assert cost == 18.00
+    assert cost == 28.50  # 3.00*2 + 15.00*1.5 = 6.00 + 22.50
 
 
 def test_unsupported_model_returns_zero():

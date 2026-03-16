@@ -26,7 +26,19 @@ class ModelPricingEngine:
         return (token_count / 1_000_000) * cached_rate
 
     def total_cost(self, model: str, input_tokens: int, output_tokens: int) -> float:
-        return self.input_cost(model, input_tokens) + self.output_cost(model, output_tokens)
+        """
+        Calculate total cost. Applies overflow pricing for Anthropic models
+        when input exceeds 200K tokens (2x input, 1.5x output).
+        """
+        input_c = self.input_cost(model, input_tokens)
+        output_c = self.output_cost(model, output_tokens)
+
+        # Anthropic overflow: >200K input → 2x input, 1.5x output
+        if model.startswith("claude") and input_tokens > 200_000:
+            input_c *= 2
+            output_c *= 1.5
+
+        return input_c + output_c
 
     def estimate_cost(self, model: str, messages: list) -> float:
         from agentfuse.providers.tokenizer import TokenCounterAdapter

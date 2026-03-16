@@ -12,10 +12,12 @@ def test_gpt4o_1M_input_tokens_costs_2_50():
 
 
 def test_claude_sonnet_total_cost_correct():
-    """1M input + 1M output on claude-sonnet-4-6 must cost $18.00."""
+    """1M input + 1M output on claude-sonnet-4-6 with overflow pricing.
+    Anthropic: >200K input → 2x input ($3.00*2=6.00/M), 1.5x output ($15.00*1.5=22.50/M).
+    Total: $6.00 + $22.50 = $28.50."""
     p = ModelPricingEngine()
     cost = p.total_cost("claude-sonnet-4-6", 1_000_000, 1_000_000)
-    assert cost == 18.00
+    assert cost == 28.50
 
 
 def test_unknown_model_returns_zero_not_raises():
@@ -73,3 +75,26 @@ def test_cached_input_cost_falls_back_to_regular():
     regular = p.input_cost("mistral-large-latest", 1_000_000)
     cached = p.cached_input_cost("mistral-large-latest", 1_000_000)
     assert cached == regular  # No cached rate defined
+
+
+def test_anthropic_overflow_pricing():
+    """Anthropic >200K input tokens triggers 2x input, 1.5x output."""
+    p = ModelPricingEngine()
+    # Normal pricing (under 200K)
+    normal_cost = p.total_cost("claude-sonnet-4-6", 100_000, 50_000)
+    # Overflow pricing (over 200K)
+    overflow_cost = p.total_cost("claude-sonnet-4-6", 300_000, 50_000)
+    # Overflow input should be 2x the normal rate
+    normal_input = p.input_cost("claude-sonnet-4-6", 300_000)
+    overflow_input = normal_input * 2
+    assert overflow_cost > normal_cost
+
+
+def test_openai_no_overflow_pricing():
+    """OpenAI models should not have overflow pricing."""
+    p = ModelPricingEngine()
+    cost_small = p.total_cost("gpt-4o", 100_000, 50_000)
+    cost_large = p.total_cost("gpt-4o", 300_000, 50_000)
+    # Should scale linearly (3x input but same output)
+    expected = p.input_cost("gpt-4o", 300_000) + p.output_cost("gpt-4o", 50_000)
+    assert abs(cost_large - expected) < 0.001
