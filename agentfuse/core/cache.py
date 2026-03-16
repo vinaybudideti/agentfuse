@@ -224,6 +224,14 @@ class TwoTierCacheMiddleware:
         if not response or not response.strip():
             return  # Never cache empty responses
 
+        # Validate response before caching
+        try:
+            from agentfuse.core.response_validator import validate_for_cache
+            if not validate_for_cache(response):
+                return
+        except ImportError:
+            pass
+
         skip = self._should_skip_cache(temperature, tools)
         if skip:
             return
