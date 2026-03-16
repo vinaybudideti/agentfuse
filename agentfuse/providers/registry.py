@@ -41,6 +41,12 @@ BUILTIN_MODELS: dict[str, dict] = {
     # xAI
     "grok-4.1-fast": {"input": 0.20, "output": 0.50, "cached_input": 0.05, "context": 2_000_000, "max_output": 131_000, "provider": "xai"},
     "grok-4.20": {"input": 2.00, "output": 6.00, "context": 256_000, "max_output": 131_000, "provider": "xai"},
+    # Groq (Llama)
+    "groq/llama-3.3-70b": {"input": 0.59, "output": 0.79, "context": 128_000, "max_output": 128_000, "provider": "groq"},
+    # Together AI (Llama)
+    "together/llama-3.3-70b": {"input": 0.88, "output": 0.88, "context": 128_000, "max_output": 128_000, "provider": "together"},
+    # OpenAI o1
+    "o1": {"input": 15.00, "output": 60.00, "context": 200_000, "max_output": 100_000, "provider": "openai"},
     # Legacy compat
     "gpt-4-turbo": {"input": 10.00, "output": 30.00, "context": 128_000, "max_output": 4_096, "provider": "openai"},
     "gemini-1.5-flash": {"input": 0.075, "output": 0.30, "context": 1_000_000, "max_output": 8_000, "provider": "gemini"},
