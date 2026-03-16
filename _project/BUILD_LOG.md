@@ -111,3 +111,15 @@ Improvements:
 
 Total: 219 tests (175 unit + 44 old), all green
 Core module coverage: 80%
+
+## Loop Iterations 14-17
+**Date:** 2026-03-16
+
+Improvements:
+- Enhanced BudgetExhaustedGracefully with run context (run_id, spent, budget)
+- Added cached_input_cost() to ModelPricingEngine (Anthropic/OpenAI cache discounts)
+- Fixed old integration tests for v0.2.0 API
+- Updated .gitignore, verified package builds as agentfuse-runtime-0.2.0.whl
+- pip-audit: 0 vulnerabilities in project dependencies
+
+Final state: 177 unit tests + 44 old tests = 221 total, all green
