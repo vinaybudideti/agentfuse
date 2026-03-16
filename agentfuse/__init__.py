@@ -14,6 +14,8 @@ from agentfuse.core.streaming import StreamingCostMiddleware, StreamCostLimitRea
 from agentfuse.core.prompt_cache import PromptCachingMiddleware
 from agentfuse.core.receipt import CostReceiptEmitter
 from agentfuse.core.error_classifier import classify_error, ClassifiedError
+from agentfuse.core.rate_limiter import TokenBucketRateLimiter, RateLimitExceeded
+from agentfuse.core.cost_alert import CostAlertManager, CostAlert
 from agentfuse.providers.openai import wrap_openai
 from agentfuse.providers.anthropic import wrap_anthropic
 
@@ -51,6 +53,11 @@ __all__ = [
     # Error handling
     "classify_error",
     "ClassifiedError",
+    # Rate limiting & alerts
+    "TokenBucketRateLimiter",
+    "RateLimitExceeded",
+    "CostAlertManager",
+    "CostAlert",
     # Provider wrappers
     "wrap_openai",
     "wrap_anthropic",
