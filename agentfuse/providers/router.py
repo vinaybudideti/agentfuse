@@ -77,3 +77,8 @@ def resolve_provider(model: str) -> tuple[str, Optional[str]]:
     # Unknown
     logger.warning("Unknown provider for model '%s' — returning ('unknown', None)", model)
     return ("unknown", None)
+
+
+def list_providers() -> dict[str, str]:
+    """List all supported OpenAI-compatible providers and their base URLs."""
+    return dict(OPENAI_COMPATIBLE_PROVIDERS)
