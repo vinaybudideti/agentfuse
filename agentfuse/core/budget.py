@@ -1,5 +1,6 @@
 # BudgetEngine: per-run state, graduated policies (alert, downgrade, compress, terminate)
 
+import threading
 from enum import Enum
 
 
@@ -27,6 +28,9 @@ class BudgetEngine:
     }
 
     def __init__(self, run_id, budget_usd, model, alert_cb=None):
+        if budget_usd <= 0:
+            raise ValueError(f"Budget must be > 0, got {budget_usd}")
+        self._lock = threading.Lock()
         self.run_id = run_id
         self.budget = budget_usd
         self.spent = 0.0
@@ -38,6 +42,10 @@ class BudgetEngine:
         self.partial_results = []
 
     def check_and_act(self, estimated_cost, messages):
+        with self._lock:
+            return self._check_and_act_unlocked(estimated_cost, messages)
+
+    def _check_and_act_unlocked(self, estimated_cost, messages):
         pct = (self.spent + estimated_cost) / self.budget
 
         if pct >= 1.0:
@@ -80,7 +88,9 @@ class BudgetEngine:
             self.alert_cb(pct, event)
 
     def record_cost(self, cost_usd):
-        self.spent += cost_usd
+        with self._lock:
+            self.spent += cost_usd
 
     def add_partial_result(self, result):
-        self.partial_results.append(result)
+        with self._lock:
+            self.partial_results.append(result)

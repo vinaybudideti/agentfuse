@@ -47,4 +47,18 @@ Documentation = "https://agentfuse.dev/docs"
 include = ["agentfuse*"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+# Cache tests must run AFTER integration tests (which also init FAISS).
+# Specifying explicit file order prevents FAISS segfault from multiple
+# CacheMiddleware instances being created in the wrong order.
+testpaths = [
+    "tests/test_budget_engine.py",
+    "tests/test_pricing.py",
+    "tests/test_tokenizer.py",
+    "tests/test_retry.py",
+    "tests/test_receipt.py",
+    "tests/test_loop_detection.py",
+    "tests/test_mock_responses.py",
+    "tests/test_thread_safety.py",
+    "tests/test_integrations.py",
+    "tests/test_cache_middleware.py",
+]

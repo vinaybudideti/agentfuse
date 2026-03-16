@@ -1,6 +1,9 @@
+import logging
 from uuid import uuid4
 from agentfuse.core.budget import BudgetEngine, BudgetExhaustedGracefully
 from agentfuse.core.cache import CacheMiddleware, CacheHit
+
+logger = logging.getLogger(__name__)
 
 
 class CacheHitException(Exception):
@@ -31,21 +34,17 @@ class AgentFuseRunHooks:
         """
         from agentfuse.providers.pricing import ModelPricingEngine
         from agentfuse.providers.tokenizer import TokenCounterAdapter
+        from agentfuse.core.keys import build_cache_key
 
         pricing = ModelPricingEngine()
         tokenizer = TokenCounterAdapter()
 
-        prompt = " ".join(
-            m.get("content", "") for m in messages
-            if isinstance(m.get("content"), str)
-        )
+        cache_key = build_cache_key(messages, self.engine.model)
 
-        # Check cache first
-        cache_result = self.cache.check(prompt, self.engine.model)
+        cache_result = self.cache.check(cache_key, self.engine.model)
         if isinstance(cache_result, CacheHit):
             raise CacheHitException(response=cache_result.response)
 
-        # Check budget
         token_count = tokenizer.count_messages_tokens(messages, self.engine.model)
         est_cost = pricing.input_cost(self.engine.model, token_count)
         new_messages, active_model = self.engine.check_and_act(est_cost, messages)
@@ -68,8 +67,8 @@ class AgentFuseRunHooks:
                     getattr(usage, "completion_tokens", 0)
                 )
                 self.engine.record_cost(cost)
-        except Exception:
-            pass
+        except (AttributeError, KeyError, TypeError) as e:
+            logger.warning("OpenAI Agents on_llm_end cost recording failed: %s", e)
 
     def get_receipt(self):
         return {

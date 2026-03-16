@@ -36,7 +36,7 @@ class ModelPricingEngine:
         self._validate_model(model)
         from agentfuse.providers.tokenizer import TokenCounterAdapter
         counter = TokenCounterAdapter()
-        input_tokens = counter.count_messages(messages, model)
+        input_tokens = counter.count_messages_tokens(messages, model)
         return self.input_cost(model, input_tokens)
 
     def is_supported(self, model):

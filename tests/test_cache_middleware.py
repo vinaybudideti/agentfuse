@@ -1,65 +1,54 @@
 import pytest
 from agentfuse.core.cache import CacheMiddleware, CacheHit, CacheMiss
+from agentfuse.core.keys import build_cache_key
 
 
 def test_cache_import():
     """Cache middleware imports and initializes without error."""
     c = CacheMiddleware()
     assert c is not None
-    print("CacheMiddleware init OK")
 
 
 def test_cache_miss_on_first_call():
-    """First call to a new prompt must be a cache miss."""
+    """First call to a never-seen prompt must be a cache miss."""
+    import uuid
     c = CacheMiddleware()
-    result = c.check("What is the capital of France?", "gpt-4o")
-    # On first call with empty cache, must be CacheMiss
-    assert isinstance(result, (CacheHit, CacheMiss))
-    print(f"First call result: {type(result).__name__}")
+    unique = f"Completely unique query {uuid.uuid4()}"
+    key = build_cache_key([{"role": "user", "content": unique}], "gpt-4o")
+    result = c.check(key, "gpt-4o")
+    assert isinstance(result, CacheMiss)
 
 
 def test_cache_hit_after_store():
-    """After storing a response, same prompt must return CacheHit tier 1."""
+    """After storing a response, same key must return CacheHit tier 1."""
     c = CacheMiddleware()
-    prompt = "What is 2 + 2?"
+    messages = [{"role": "user", "content": "What is 2 + 2?"}]
+    key = build_cache_key(messages, "gpt-4o")
     response = "The answer is 4."
 
-    # Store the response
-    c.store(prompt, response, "gpt-4o")
-
-    # Now check — should be a hit
-    result = c.check(prompt, "gpt-4o")
+    c.store(key, response, "gpt-4o")
+    result = c.check(key, "gpt-4o")
     assert isinstance(result, CacheHit), f"Expected CacheHit, got {type(result).__name__}"
     assert result.tier == 1
     assert result.cost == 0.0
-    print(f"Cache hit tier: {result.tier}, cost: {result.cost}")
 
 
 def test_semantic_similarity_hit():
     """Semantically similar prompt should also return a cache hit."""
     c = CacheMiddleware()
-    original = "What is the capital city of France?"
-    similar = "What city is the capital of France?"
+    original = build_cache_key([{"role": "user", "content": "What is the capital city of France?"}], "gpt-4o")
+    similar = build_cache_key([{"role": "user", "content": "What city is the capital of France?"}], "gpt-4o")
     response = "Paris is the capital of France."
 
     c.store(original, response, "gpt-4o")
     result = c.check(similar, "gpt-4o")
 
-    # Should be a hit (tier 1 or tier 2) due to semantic similarity
-    if isinstance(result, CacheHit):
-        print(f"Semantic hit tier: {result.tier}")
-    else:
-        print("Semantic miss — may indicate low similarity threshold")
     # Not a hard assert — similarity depends on model calibration
     assert isinstance(result, (CacheHit, CacheMiss))
 
 
 def test_repeated_prompts_hit_rate():
-    """
-    Week 2 done criteria: 87.5%+ cache hit rate on repeated prompts.
-    Send 8 prompts — store first, then re-check all 8.
-    Expected: 8/8 hits = 100% (all stored prompts must hit).
-    """
+    """87.5%+ cache hit rate on repeated prompts."""
     c = CacheMiddleware()
     prompts = [
         ("What is Python?", "Python is a programming language."),
@@ -72,18 +61,58 @@ def test_repeated_prompts_hit_rate():
         ("What is a vector embedding?", "An embedding maps text to a numeric vector."),
     ]
 
-    # Store all 8
     for prompt, response in prompts:
-        c.store(prompt, response, "gpt-4o")
+        key = build_cache_key([{"role": "user", "content": prompt}], "gpt-4o")
+        c.store(key, response, "gpt-4o")
 
-    # Check all 8 — all must hit
     hits = 0
     for prompt, _ in prompts:
-        result = c.check(prompt, "gpt-4o")
+        key = build_cache_key([{"role": "user", "content": prompt}], "gpt-4o")
+        result = c.check(key, "gpt-4o")
         if isinstance(result, CacheHit):
             hits += 1
 
     hit_rate = hits / len(prompts)
-    print(f"Cache hit rate: {hits}/{len(prompts)} = {hit_rate:.1%}")
     assert hit_rate >= 0.875, f"Hit rate {hit_rate:.1%} is below 87.5% threshold"
-    print("Week 2 cache hit rate test PASSED")
+
+
+# --- Tests that would have caught the cache key bugs ---
+
+def test_different_roles_produce_different_keys():
+    """System+user vs user-only must NOT collide."""
+    key_a = build_cache_key([
+        {"role": "system", "content": "Be helpful"},
+        {"role": "user", "content": "hello"},
+    ], "gpt-4o")
+    key_b = build_cache_key([
+        {"role": "user", "content": "Be helpful hello"},
+    ], "gpt-4o")
+    assert key_a != key_b
+
+
+def test_cross_model_cache_isolation():
+    """GPT-4o response must NOT be returned for a Claude request."""
+    c = CacheMiddleware()
+    messages = [{"role": "user", "content": "What is the meaning of life?"}]
+
+    key_gpt = build_cache_key(messages, "gpt-4o")
+    key_claude = build_cache_key(messages, "claude-sonnet-4-6")
+
+    c.store(key_gpt, "GPT says 42", "gpt-4o")
+
+    # Same prompt, different model — must be a miss
+    result = c.check(key_claude, "claude-sonnet-4-6")
+    assert isinstance(result, CacheMiss), \
+        f"Cross-model contamination: got {type(result).__name__} with response={getattr(result, 'response', None)}"
+
+
+def test_non_string_content_handled():
+    """List-format content (Anthropic vision/tool) must not crash."""
+    key = build_cache_key([
+        {"role": "user", "content": [
+            {"type": "text", "text": "Describe this image"},
+            {"type": "image", "source": {"data": "base64..."}}
+        ]}
+    ], "gpt-4o")
+    assert "[user]:" in key
+    assert "Describe this image" in key

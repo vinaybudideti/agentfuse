@@ -7,7 +7,7 @@ Usage (2 lines):
     wrap_anthropic(budget_usd=5.00, run_id="run_123")
 """
 
-from types import SimpleNamespace
+from agentfuse.providers.mock_responses import MockAnthropicResponse
 
 # Module-level state
 _budget_engines = {}  # run_id -> BudgetEngine
@@ -50,11 +50,9 @@ def wrap_anthropic(budget_usd: float, run_id: str = None,
         call_model = kwargs.get("model", engine.model)
 
         # Step 1: Check cache
-        prompt = " ".join(
-            m.get("content", "") for m in messages
-            if isinstance(m.get("content"), str)
-        )
-        cache_result = cache.check(prompt, call_model, engine)
+        from agentfuse.core.keys import build_cache_key
+        cache_key = build_cache_key(messages, call_model)
+        cache_result = cache.check(cache_key, call_model, engine)
         if isinstance(cache_result, CacheHit):
             return _mock_anthropic_response(cache_result.response, call_model)
 
@@ -78,10 +76,11 @@ def wrap_anthropic(budget_usd: float, run_id: str = None,
             engine.record_cost(actual_cost)
 
         # Step 5: Store in cache
-        if result.content:
+        if result.content and hasattr(result.content[0], "text"):
             response_text = result.content[0].text
-            engine.add_partial_result(response_text)
-            cache.store(prompt, response_text, active_model)
+            if response_text:
+                engine.add_partial_result(response_text)
+                cache.store(cache_key, response_text, active_model)
 
         return result
 
@@ -90,13 +89,5 @@ def wrap_anthropic(budget_usd: float, run_id: str = None,
 
 
 def _mock_anthropic_response(content: str, model: str):
-    """Creates a minimal Anthropic-compatible response object for cache hits."""
-    return SimpleNamespace(
-        id="cache_hit",
-        model=model,
-        type="message",
-        role="assistant",
-        content=[SimpleNamespace(type="text", text=content)],
-        stop_reason="end_turn",
-        usage=SimpleNamespace(input_tokens=0, output_tokens=0),
-    )
+    """Creates an Anthropic-compatible response object for cache hits."""
+    return MockAnthropicResponse(content, model)

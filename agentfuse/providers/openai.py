@@ -7,7 +7,7 @@ Usage (2 lines):
     wrap_openai(budget_usd=5.00, run_id="run_123")
 """
 
-from types import SimpleNamespace
+from agentfuse.providers.mock_responses import MockOpenAIResponse
 
 # Module-level state
 _budget_engines = {}  # run_id -> BudgetEngine
@@ -47,8 +47,9 @@ def wrap_openai(budget_usd: float, run_id: str = None,
         call_model = kwargs.get("model", engine.model)
 
         # Step 1: Check cache
-        prompt = " ".join(m.get("content", "") for m in messages)
-        cache_result = cache.check(prompt, call_model, engine)
+        from agentfuse.core.keys import build_cache_key
+        cache_key = build_cache_key(messages, call_model)
+        cache_result = cache.check(cache_key, call_model, engine)
         if isinstance(cache_result, CacheHit):
             return _mock_openai_response(cache_result.response, call_model)
 
@@ -72,10 +73,10 @@ def wrap_openai(budget_usd: float, run_id: str = None,
             engine.record_cost(actual_cost)
 
         # Step 5: Store in cache
-        if result.choices:
+        if result.choices and result.choices[0].message.content:
             response_text = result.choices[0].message.content
             engine.add_partial_result(response_text)
-            cache.store(prompt, response_text, active_model)
+            cache.store(cache_key, response_text, active_model)
 
         return result
 
@@ -84,16 +85,5 @@ def wrap_openai(budget_usd: float, run_id: str = None,
 
 
 def _mock_openai_response(content: str, model: str):
-    """Creates a minimal OpenAI-compatible response object for cache hits."""
-    return SimpleNamespace(
-        id="cache_hit",
-        model=model,
-        choices=[SimpleNamespace(
-            message=SimpleNamespace(content=content, role="assistant"),
-            finish_reason="stop",
-            index=0,
-        )],
-        usage=SimpleNamespace(
-            prompt_tokens=0, completion_tokens=0, total_tokens=0,
-        ),
-    )
+    """Creates an OpenAI-compatible response object for cache hits."""
+    return MockOpenAIResponse(content, model)
