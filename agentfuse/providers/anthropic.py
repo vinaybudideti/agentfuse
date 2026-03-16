@@ -162,6 +162,14 @@ def _wrap_anthropic_stream(stream, model, engine, pricing,
     return stream_wrapper()
 
 
+def cleanup_anthropic(run_id: str = None):
+    """Release resources for a completed run. Call when agent run is done."""
+    if run_id and run_id in _budget_engines:
+        del _budget_engines[run_id]
+    elif run_id is None:
+        _budget_engines.clear()
+
+
 def _extract_response_text(result) -> str:
     """Extract text from Anthropic response, handling tool_use blocks."""
     if not hasattr(result, "content") or not result.content:
