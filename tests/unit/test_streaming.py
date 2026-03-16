@@ -74,3 +74,35 @@ def test_get_final_cost():
     chunks = [_openai_chunk("Hi")]
     list(middleware.wrap_stream(iter(chunks), input_tokens=10))
     assert middleware.get_final_cost() > 0
+
+
+def test_anthropic_stream_format():
+    """Anthropic streaming chunks with delta.text must be tracked."""
+    pricing = ModelPricingEngine()
+    budget = BudgetEngine("stream_anthropic", 10.0, "claude-sonnet-4-6")
+    middleware = StreamingCostMiddleware("claude-sonnet-4-6", pricing, budget)
+
+    # Anthropic format: chunk.delta.text
+    chunks = [
+        SimpleNamespace(delta=SimpleNamespace(text="Hello")),
+        SimpleNamespace(delta=SimpleNamespace(text=" world")),
+        SimpleNamespace(delta=SimpleNamespace(text=None)),  # end marker
+    ]
+
+    costs = []
+    for _, cost in middleware.wrap_stream(iter(chunks), input_tokens=10):
+        costs.append(cost)
+
+    assert middleware.token_count == 2  # "Hello" and " world", not None
+
+
+def test_no_max_stream_cost_allows_all():
+    """Without max_stream_cost, all chunks must pass through."""
+    pricing = ModelPricingEngine()
+    budget = BudgetEngine("stream_no_max", 10.0, "gpt-4o")
+    middleware = StreamingCostMiddleware("gpt-4o", pricing, budget)
+
+    chunks = [_openai_chunk(f"token {i}") for i in range(100)]
+    result = list(middleware.wrap_stream(iter(chunks), input_tokens=10))
+    assert len(result) == 100
+    assert middleware.token_count == 100
