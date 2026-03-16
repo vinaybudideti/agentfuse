@@ -152,3 +152,19 @@ Major improvements:
 - Exported provider modules from providers/__init__.py
 
 Final state: 195 unit tests, all green, 74% total coverage
+
+## Loop Iterations 30-40
+**Date:** 2026-03-16
+
+Major improvements:
+- Implemented Anthropic overflow pricing (>200K: 2x input, 1.5x output)
+- FAISS index persistence to disk (save/load)
+- Synced retry and budget downgrade maps
+- Added BudgetEngine __repr__ and NormalizedUsage __repr__
+- Added conftest.py with shared test fixtures
+- Updated CHANGELOG.md with all v0.2.0 features
+- Added advanced router tests (ollama, openrouter, vllm, ft: prefix)
+- Added async budget store and InMemoryStore backward compat tests
+- Added cosine similarity edge case tests (zero vector, orthogonal)
+
+Final state: 217 unit tests, 85% core coverage, 63 commits
