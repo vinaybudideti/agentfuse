@@ -12,6 +12,7 @@ from agentfuse.providers.mock_responses import MockAnthropicResponse
 # Module-level state
 _budget_engines = {}  # run_id -> BudgetEngine
 _cache_middleware = None
+_original_anthropic_create = None  # store original to prevent double-wrapping
 
 
 def wrap_anthropic(budget_usd: float, run_id: str = None,
@@ -42,8 +43,11 @@ def wrap_anthropic(budget_usd: float, run_id: str = None,
 
     _budget_engines[run_id] = engine
 
+    global _original_anthropic_create
     client = anthropic_sdk.Anthropic()
-    original_create = client.messages.create
+    if _original_anthropic_create is None:
+        _original_anthropic_create = client.messages.create
+    original_create = _original_anthropic_create
 
     def intercepted_create(*args, **kwargs):
         messages = kwargs.get("messages", [])

@@ -12,6 +12,7 @@ from agentfuse.providers.mock_responses import MockOpenAIResponse
 # Module-level state
 _budget_engines = {}  # run_id -> BudgetEngine
 _cache_middleware = None
+_original_openai_create = None  # store original to prevent double-wrapping
 
 
 def wrap_openai(budget_usd: float, run_id: str = None,
@@ -40,7 +41,10 @@ def wrap_openai(budget_usd: float, run_id: str = None,
 
     _budget_engines[run_id] = engine
 
-    original_create = openai.chat.completions.create
+    global _original_openai_create
+    if _original_openai_create is None:
+        _original_openai_create = openai.chat.completions.create
+    original_create = _original_openai_create
 
     def intercepted_create(*args, **kwargs):
         messages = kwargs.get("messages", [])
