@@ -153,3 +153,7 @@ class BudgetEngine:
     def get_current_run_id() -> str | None:
         """Get the current run_id from ContextVar (async-safe)."""
         return _current_run_id.get()
+
+    def __repr__(self) -> str:
+        return (f"BudgetEngine(run_id={self.run_id!r}, budget=${self.budget:.2f}, "
+                f"spent=${self.spent:.4f}, model={self.model!r}, state={self.state.value})")
