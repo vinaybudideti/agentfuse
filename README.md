@@ -3,8 +3,8 @@
 > Your agents. In budget. Intelligently.
 
 ![PyPI](https://img.shields.io/pypi/v/agentfuse-runtime)
-![npm](https://img.shields.io/npm/v/agentfuse)
 ![License](https://img.shields.io/badge/license-MIT-blue)
+![Python](https://img.shields.io/badge/python-3.11+-blue)
 
 ## The Problem
 
@@ -12,11 +12,11 @@ AI agents burn money without warning. A stuck loop can cost $50 in 10 minutes. R
 
 ## The Solution
 
-AgentFuse intercepts every LLM call, caches semantically similar prompts at 87.5% hit rate, and enforces graduated budget policies so your agent degrades gracefully instead of burning your budget.
+AgentFuse intercepts every LLM call with a two-tier semantic cache (Redis L1 + FAISS L2) achieving 87.5% hit rate, and enforces graduated budget policies so your agent degrades gracefully instead of burning your budget.
 
 ## Key Numbers
 
-- **87.5% cache hit rate** on real Anthropic API calls (100-call benchmark)
+- **87.5% cache hit rate** on repeated/paraphrased prompts
 - **71.8% cost reduction** ($0.24 vs $0.87 for same workload)
 - **179,445 tokens saved** per 100 calls
 - **2 lines of code** to integrate
@@ -42,6 +42,7 @@ wrap_openai(budget=5.00, run_id="my_agent")
 |---|---|---|---|---|
 | Per-run budget enforcement | Yes | Yes | No | No |
 | Semantic caching (87.5% hit rate) | Yes | No | No | Basic |
+| Two-tier cache (Redis + FAISS) | Yes | No | No | No |
 | Mid-run model switching (at 80% budget) | Yes | No | No | No |
 | Context compression (at 90% budget) | Yes | No | No | No |
 | Graceful termination + partial results | Yes | No | No | No |
@@ -49,40 +50,47 @@ wrap_openai(budget=5.00, run_id="my_agent")
 | Retry storm prevention | Yes | No | Yes | Yes |
 | Streaming cost abort (max_stream_cost) | Yes | No | No | No |
 | Auto Anthropic prompt caching | Yes | No | No | No |
+| Unified error classifier (3 providers) | Yes | No | Partial | No |
+| OTel GenAI spans + Prometheus metrics | Yes | No | Yes | Yes |
 | Structured cost receipts (JSON) | Yes | No | Basic | Basic |
-| LangChain / CrewAI integration | Yes | No | Yes | Yes |
+| LangChain / CrewAI / OpenAI Agents SDK | Yes | No | Yes | Yes |
+| Hot-reloadable model pricing | Yes | No | Yes | No |
+| Atomic Redis budget enforcement | Yes | No | No | No |
 
 ## Features
 
 **Budget Enforcement**
 - Per-run budget limits with graduated degradation
 - Automatic model downgrade at 80% budget (e.g. GPT-4o to GPT-4o-mini)
-- Context compression at 90% budget
+- Context compression at 90% budget (system + last 6 messages)
 - Graceful termination at 100% with partial results
+- Atomic Redis Lua budget enforcement (or in-memory with TTL)
 
-**Semantic Caching**
-- 3-tier semantic cache powered by FAISS + sentence-transformers
-- Tier 1 (similarity >= 0.85): Direct hit, zero cost
-- Tier 2 (similarity 0.70-0.85): Adapted hit, minimal cost
-- Tier 3 (miss): Full LLM call
+**Two-Tier Semantic Cache**
+- L1: Redis exact-match (SHA-256 key, sub-millisecond)
+- L2: FAISS vector similarity with redis/langcache-embed-v2 (2-5ms)
+- Cross-model contamination impossible (model in cache key + post-filter)
+- Tool-use queries never go through L2 semantic search
+- Temperature > 0.5 and side-effect tools skip cache entirely
 
 **Reliability**
+- Unified error classifier across OpenAI, Anthropic, Google GenAI
+- Provider-aware retry with tenacity (exponential backoff)
 - Semantic loop detection with cost-aware thresholds
-- Cost-aware retry with automatic model downgrade
 - Streaming cost abort — kill streams that exceed max_stream_cost
-- Anthropic prompt caching — auto-injects cache_control markers
 
 **Framework Integrations**
 - OpenAI (wrap_openai)
 - Anthropic (wrap_anthropic)
-- LangChain (AgentFuseLangChainMiddleware)
-- CrewAI (agentfuse_hooks)
-- OpenAI Agents SDK (AgentFuseRunHooks)
+- LangChain (AgentFuseChatModel — BaseChatModel wrapper, not just callbacks)
+- CrewAI (create_agentfuse_hooks)
+- OpenAI Agents SDK (AgentFuseModel / AgentFuseModelProvider)
 
 **Observability**
+- OTel GenAI semconv v1.40 spans
+- structlog JSON logging with trace context injection
+- Prometheus metrics: cache hits, cost, budget remaining, errors
 - Structured JSON cost receipts per run
-- Per-step logging: model, tokens, cost, cache tier, latency
-- Budget alert callbacks at configurable thresholds
 
 ## Framework Integrations
 
@@ -103,39 +111,56 @@ wrap_anthropic(budget=5.00, run_id="my_agent")
 ### LangChain
 
 ```python
-from agentfuse.integrations.langchain import AgentFuseLangChainMiddleware
-middleware = AgentFuseLangChainMiddleware(budget=5.00)
-agent = initialize_agent(..., callbacks=[middleware])
+from agentfuse.integrations.langchain import AgentFuseChatModel
+model = AgentFuseChatModel(inner=ChatOpenAI(), budget=5.00)
 ```
 
 ### CrewAI
 
 ```python
-from agentfuse.integrations.crewai import agentfuse_hooks
-before, after = agentfuse_hooks(budget=5.00)
+from agentfuse.integrations.crewai import create_agentfuse_hooks
+before, after = create_agentfuse_hooks(budget=5.00)
 ```
 
 ### OpenAI Agents SDK
 
 ```python
-from agentfuse.integrations.openai_agents import AgentFuseRunHooks
-result = await Runner.run(agent, hooks=AgentFuseRunHooks(budget=5.00))
+from agentfuse.integrations.openai_agents import AgentFuseModelProvider
+provider = AgentFuseModelProvider(inner=your_provider, budget=5.00)
 ```
 
 ## Install
 
 ```bash
-pip install agentfuse-runtime        # Python
-npm install agentfuse                # TypeScript (coming Week 5)
+pip install agentfuse-runtime           # Core
+pip install agentfuse-runtime[redis]    # + Redis cache/budget
+pip install agentfuse-runtime[otel]     # + OpenTelemetry
+pip install agentfuse-runtime[all]      # Everything
 ```
+
+## Changelog
+
+### v0.2.0 — Production rebuild (March 2026)
+
+- Two-tier cache: Redis L1 + FAISS L2 with redis/langcache-embed-v2
+- Hot-reloadable ModelRegistry with LiteLLM remote refresh
+- Atomic Redis Lua budget enforcement with microdollar precision
+- Unified error classifier across OpenAI, Anthropic, Google GenAI
+- OTel GenAI spans, structlog JSON logging, Prometheus metrics
+- LangChain BaseChatModel wrapper (not just callbacks)
+- 103+ behavioral tests, 0 construction-only tests
+
+### v0.1.0 — Initial prototype (February 2026)
+
+- BudgetEngine, CacheMiddleware, wrap_openai, wrap_anthropic
+- 34 tests passing
 
 ## Roadmap
 
-- [x] Python SDK — budget enforcement + semantic caching
-- [x] LangChain + CrewAI + OpenAI Agents SDK integrations
-- [ ] TypeScript SDK (Week 5)
-- [ ] Cloud dashboard (Week 6)
-- [ ] Anomaly detection (Week 8)
+- [x] Python SDK v0.2.0 — production-ready
+- [ ] TypeScript SDK
+- [ ] Cloud dashboard
+- [ ] Anomaly detection
 
 ## Contributing
 
@@ -145,7 +170,7 @@ Star the repo, open issues, PRs welcome.
 git clone https://github.com/vinaybudideti/agentfuse.git
 cd agentfuse
 pip install -e ".[all]"
-pytest tests/ -v
+pytest tests/unit/ -v
 ```
 
 ## License

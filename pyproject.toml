@@ -4,39 +4,50 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentfuse-runtime"
-version = "0.1.0"
+version = "0.2.0"
 description = "Intelligent LLM agent cost optimization runtime — semantic caching + graduated budget enforcement"
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 keywords = ["llm", "ai-agents", "cost-optimization", "semantic-caching",
-            "budget-enforcement", "langchain", "crewai"]
+            "budget-enforcement", "langchain", "crewai", "openai-agents"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "faiss-cpu>=1.7.0",
-    "sentence-transformers>=2.0.0",
-    "tiktoken>=0.5.0",
-    "tenacity>=8.0.0",
-    "fastapi>=0.100.0",
-    "httpx>=0.24.0",
-    "numpy>=1.24.0",
+    "httpx>=0.27",
+    "numpy>=1.24",
+    "faiss-cpu>=1.7",
+    "sentence-transformers>=3.0",
+    "cachetools>=5.3",
+    "structlog>=24.0",
+    "tenacity>=8.2",
+    "tiktoken>=0.5",
 ]
 
 [project.optional-dependencies]
-openai = ["openai>=1.0.0"]
-anthropic = ["anthropic>=0.20.0"]
-langchain = ["langchain>=0.1.0"]
-all = ["openai>=1.0.0", "anthropic>=0.20.0", "langchain>=0.1.0"]
+redis = ["redis>=5.0"]
+otel = ["opentelemetry-sdk>=1.20", "opentelemetry-api>=1.20"]
+openai = ["openai>=1.0"]
+anthropic = ["anthropic>=0.20"]
+gemini = ["google-genai>=1.0"]
+langchain = ["langchain-core>=0.3"]
+all = [
+    "redis>=5.0",
+    "opentelemetry-sdk>=1.20",
+    "opentelemetry-api>=1.20",
+    "openai>=1.0",
+    "anthropic>=0.20",
+    "langchain-core>=0.3",
+    "prometheus-client>=0.20",
+]
 
 [project.urls]
 Homepage = "https://agentfuse.dev"
@@ -47,10 +58,8 @@ Documentation = "https://agentfuse.dev/docs"
 include = ["agentfuse*"]
 
 [tool.pytest.ini_options]
-# Cache tests must run AFTER integration tests (which also init FAISS).
-# Specifying explicit file order prevents FAISS segfault from multiple
-# CacheMiddleware instances being created in the wrong order.
 testpaths = [
+    "tests/unit",
     "tests/test_budget_engine.py",
     "tests/test_pricing.py",
     "tests/test_tokenizer.py",
