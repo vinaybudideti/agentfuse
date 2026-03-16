@@ -6,10 +6,8 @@ Usage (2 lines):
     from agentfuse import wrap_anthropic
     wrap_anthropic(budget_usd=5.00, run_id="run_123")
 
-PRODUCTION FIX: Uses extract_usage("anthropic", ...) for accurate cost with
-cache_read/cache_creation billing. Previously used raw input_tokens which
-EXCLUDES cached tokens, causing 50-300% cost under-reporting.
-PRODUCTION FIX: Handles tool_use content blocks (not just text).
+Handles both streaming and non-streaming responses.
+Uses extract_usage() for accurate cache billing.
 """
 
 from agentfuse.providers.mock_responses import MockAnthropicResponse
@@ -66,8 +64,9 @@ def wrap_anthropic(budget_usd: float, run_id: str = None,
         call_model = kwargs.get("model", engine.model)
         temperature = kwargs.get("temperature", 0.0)
         tools = kwargs.get("tools", None)
+        is_streaming = kwargs.get("stream", False)
 
-        # Step 1: Check cache using NEW two-tier lookup API
+        # Step 1: Check cache
         cache_result = cache.lookup(
             model=call_model,
             messages=messages,
@@ -77,7 +76,7 @@ def wrap_anthropic(budget_usd: float, run_id: str = None,
         if isinstance(cache_result, CacheHit):
             return _mock_anthropic_response(cache_result.response, call_model)
 
-        # Step 2: Check budget (estimated cost)
+        # Step 2: Check budget
         token_count = tokenizer.count_messages_tokens(messages, call_model)
         est_cost = pricing.input_cost(call_model, token_count)
         messages, active_model = engine.check_and_act(est_cost, messages)
@@ -87,31 +86,80 @@ def wrap_anthropic(budget_usd: float, run_id: str = None,
         # Step 3: Make real call
         result = original_create(*args, **kwargs)
 
-        # Step 4: Record ACTUAL cost using normalized usage extraction
-        if hasattr(result, "usage") and result.usage:
-            normalized = extract_usage("anthropic", result.usage)
-            actual_cost = pricing.total_cost_normalized(active_model, normalized)
-            engine.record_cost(actual_cost)
-
-        # Step 5: Store in cache using NEW store API
-        try:
-            response_text = _extract_response_text(result)
-            if response_text:
-                engine.add_partial_result(response_text)
-                cache.store(
-                    model=active_model,
-                    messages=messages,
-                    response=response_text,
-                    temperature=temperature,
-                    tools=tools,
-                )
-        except (AttributeError, IndexError, TypeError):
-            pass
-
-        return result
+        # Step 4 + 5: Handle response
+        if is_streaming:
+            return _wrap_anthropic_stream(result, active_model, engine, pricing,
+                                          cache, messages, temperature, tools)
+        else:
+            _record_and_cache_anthropic(result, active_model, engine, pricing,
+                                         cache, messages, temperature, tools)
+            return result
 
     client.messages.create = intercepted_create
     return run_id, client
+
+
+def _record_and_cache_anthropic(result, model, engine, pricing, cache,
+                                  messages, temperature, tools):
+    """Record cost and cache response for non-streaming Anthropic calls."""
+    from agentfuse.providers.response import extract_usage
+    try:
+        if hasattr(result, "usage") and result.usage:
+            normalized = extract_usage("anthropic", result.usage)
+            actual_cost = pricing.total_cost_normalized(model, normalized)
+            engine.record_cost(actual_cost)
+
+        response_text = _extract_response_text(result)
+        if response_text:
+            engine.add_partial_result(response_text)
+            cache.store(
+                model=model, messages=messages, response=response_text,
+                temperature=temperature, tools=tools,
+            )
+    except (AttributeError, IndexError, TypeError):
+        pass
+
+
+def _wrap_anthropic_stream(stream, model, engine, pricing,
+                            cache, messages, temperature, tools):
+    """Wrap a streaming Anthropic response to track cost and collect content."""
+    collected_content = []
+    token_count = 0
+
+    def stream_wrapper():
+        nonlocal token_count
+        for event in stream:
+            try:
+                if hasattr(event, "delta") and hasattr(event.delta, "text"):
+                    text = event.delta.text
+                    if text:
+                        collected_content.append(text)
+                        token_count += max(1, int(len(text) / 3.5))
+            except (AttributeError, IndexError):
+                pass
+            yield event
+
+        # After stream ends: record cost and cache
+        try:
+            output_cost = pricing.output_cost(model, token_count)
+            input_token_est = sum(
+                len(m.get("content", "")) // 4 + 3
+                for m in messages if isinstance(m, dict)
+            )
+            input_cost = pricing.input_cost(model, input_token_est)
+            engine.record_cost(input_cost + output_cost)
+
+            full_response = "".join(collected_content)
+            if full_response.strip():
+                engine.add_partial_result(full_response)
+                cache.store(
+                    model=model, messages=messages, response=full_response,
+                    temperature=temperature, tools=tools,
+                )
+        except Exception:
+            pass
+
+    return stream_wrapper()
 
 
 def _extract_response_text(result) -> str:
