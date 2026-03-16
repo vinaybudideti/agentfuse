@@ -12,6 +12,7 @@ FIX: Recalculates token count after model downgrade for accurate cost tracking.
 """
 
 import asyncio
+import random
 import time
 import logging
 
@@ -112,8 +113,13 @@ class CostAwareRetry:
                     current_model, current_model
                 )
 
-                # Respect Retry-After header if present
-                wait_time = 2 ** attempt
+                # Exponential backoff with full jitter (AWS best practice)
+                # This prevents thundering herd when many clients retry simultaneously
+                base_wait = 2 ** attempt
+                jittered_wait = random.uniform(0, base_wait)  # full jitter
+                wait_time = min(jittered_wait, 60)  # cap at 60s
+
+                # Respect Retry-After header if present (takes priority)
                 if classified.retry_after and classified.retry_after > wait_time:
                     wait_time = min(classified.retry_after, 60)
 
@@ -157,7 +163,10 @@ class CostAwareRetry:
 
                 current_model = self.RETRY_DOWNGRADE_MAP.get(current_model, current_model)
 
-                wait_time = 2 ** attempt
+                # Exponential backoff with full jitter
+                base_wait = 2 ** attempt
+                jittered_wait = random.uniform(0, base_wait)
+                wait_time = min(jittered_wait, 60)
                 if classified.retry_after and classified.retry_after > wait_time:
                     wait_time = min(classified.retry_after, 60)
 
