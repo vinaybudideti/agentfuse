@@ -65,14 +65,15 @@ class MockOpenAIResponse(_DictMixin):
     """Mimics openai.types.chat.ChatCompletion."""
 
     def __init__(self, content: str, model: str):
-        self.id = "cache_hit"
+        self.id = "agentfuse_cache_hit"
         self.object = "chat.completion"
         self.created = int(time.time())
         self.model = model
         self.choices = [MockOpenAIChoice(content)]
         self.usage = MockOpenAIUsage()
-        self.system_fingerprint = None
-        self.service_tier = None
+        self.system_fingerprint = "agentfuse_cache"
+        self.service_tier = "default"
+        self._agentfuse_cache_hit = True
 
 
 class MockAnthropicUsage(_DictMixin):
@@ -91,7 +92,7 @@ class MockAnthropicResponse(_DictMixin):
     """Mimics anthropic.types.Message."""
 
     def __init__(self, content: str, model: str):
-        self.id = "cache_hit"
+        self.id = "agentfuse_cache_hit"
         self.type = "message"
         self.role = "assistant"
         self.model = model
@@ -99,3 +100,4 @@ class MockAnthropicResponse(_DictMixin):
         self.stop_reason = "end_turn"
         self.stop_sequence = None
         self.usage = MockAnthropicUsage()
+        self._agentfuse_cache_hit = True

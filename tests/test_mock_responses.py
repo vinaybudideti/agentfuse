@@ -9,7 +9,7 @@ def test_openai_mock_has_required_fields():
     r = MockOpenAIResponse("Hello", "gpt-4o")
 
     # Fields that real openai.types.chat.ChatCompletion has
-    assert r.id == "cache_hit"
+    assert r.id == "agentfuse_cache_hit"
     assert r.model == "gpt-4o"
     assert r.object == "chat.completion"
     assert r.created > 0
@@ -52,7 +52,7 @@ def test_openai_mock_model_dump():
 def test_anthropic_mock_has_required_fields():
     r = MockAnthropicResponse("Hello", "claude-sonnet-4-6")
 
-    assert r.id == "cache_hit"
+    assert r.id == "agentfuse_cache_hit"
     assert r.type == "message"
     assert r.role == "assistant"
     assert r.model == "claude-sonnet-4-6"
