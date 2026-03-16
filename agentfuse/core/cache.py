@@ -207,6 +207,9 @@ class TwoTierCacheMiddleware:
         tenant_id: Optional[str] = None,
     ):
         """Store in L1 and (if no tools) L2."""
+        if not response or not response.strip():
+            return  # Never cache empty responses
+
         skip = self._should_skip_cache(temperature, tools)
         if skip:
             return
@@ -383,6 +386,8 @@ class TwoTierCacheMiddleware:
 
     def store_compat(self, cache_key: str, response: str, model: str):
         """Old API: store by pre-built cache key string."""
+        if not response or not response.strip():
+            return  # Never cache empty responses
         # L1 store
         self._l1_set(cache_key, response)
 

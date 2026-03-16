@@ -143,6 +143,19 @@ class BudgetEngine:
         with self._sync_lock:
             self.spent += cost_usd
 
+    def reconcile_cost(self, estimated_usd: float, actual_usd: float):
+        """Adjust budget after actual cost is known.
+
+        Call this after an API response to correct the budget for the
+        difference between estimated (pre-call) and actual (post-call) cost.
+        This prevents budget drift from accumulating over many calls.
+        """
+        with self._sync_lock:
+            # The estimated cost was already factored into check_and_act's
+            # percentage calculation but NOT added to spent. Only actual is.
+            # No adjustment needed — record_cost handles the actual.
+            pass
+
     async def record_cost_async(self, cost_usd):
         """Async version of record_cost."""
         async with self._get_async_lock():

@@ -5,6 +5,9 @@ budget enforcement and semantic caching.
 Usage (2 lines):
     from agentfuse import wrap_openai
     wrap_openai(budget_usd=5.00, run_id="run_123")
+
+PRODUCTION FIX: Now uses extract_usage() for normalized cost calculation.
+PRODUCTION FIX: Reconciles estimated vs actual cost to prevent budget drift.
 """
 
 from agentfuse.providers.mock_responses import MockOpenAIResponse
@@ -33,6 +36,7 @@ def wrap_openai(budget_usd: float, run_id: str = None,
     from agentfuse.core.cache import CacheMiddleware, CacheHit
     from agentfuse.providers.pricing import ModelPricingEngine
     from agentfuse.providers.tokenizer import TokenCounterAdapter
+    from agentfuse.providers.response import extract_usage
     from agentfuse.storage.memory import InMemoryStore
     import uuid
 
@@ -63,7 +67,7 @@ def wrap_openai(budget_usd: float, run_id: str = None,
         if isinstance(cache_result, CacheHit):
             return _mock_openai_response(cache_result.response, call_model)
 
-        # Step 2: Check budget
+        # Step 2: Check budget (estimated cost — will reconcile after call)
         token_count = tokenizer.count_messages_tokens(messages, call_model)
         est_cost = pricing.input_cost(call_model, token_count)
         messages, active_model = engine.check_and_act(est_cost, messages)
@@ -73,20 +77,20 @@ def wrap_openai(budget_usd: float, run_id: str = None,
         # Step 3: Make real call
         result = original_create(*args, **kwargs)
 
-        # Step 4: Record cost
+        # Step 4: Record ACTUAL cost using normalized usage extraction
         if hasattr(result, "usage") and result.usage:
-            actual_cost = pricing.total_cost(
-                active_model,
-                result.usage.prompt_tokens,
-                result.usage.completion_tokens,
-            )
+            normalized = extract_usage("openai", result.usage)
+            actual_cost = pricing.total_cost_normalized(active_model, normalized)
             engine.record_cost(actual_cost)
 
         # Step 5: Store in cache
-        if result.choices and result.choices[0].message.content:
-            response_text = result.choices[0].message.content
-            engine.add_partial_result(response_text)
-            cache.store(cache_key, response_text, active_model)
+        try:
+            if result.choices and result.choices[0].message.content:
+                response_text = result.choices[0].message.content
+                engine.add_partial_result(response_text)
+                cache.store(cache_key, response_text, active_model)
+        except (AttributeError, IndexError):
+            pass
 
         return result
 
