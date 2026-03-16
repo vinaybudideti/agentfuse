@@ -7,3 +7,5 @@ build/
 .venv/
 venv/
 *.db
+.coverage
+.pytest_cache/
