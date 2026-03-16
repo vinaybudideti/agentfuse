@@ -62,3 +62,24 @@ def test_inject_does_not_mutate_original():
     original_content = msgs[0]["content"]
     m.inject(msgs, "claude-sonnet-4-6")
     assert msgs[0]["content"] == original_content  # Original unchanged
+
+
+def test_is_static_detects_timestamps():
+    """Content with timestamps must be detected as dynamic."""
+    m = PromptCachingMiddleware()
+    assert not m._is_static("timestamp=1710523200 is current")
+    assert not m._is_static("request_id: abc123xyz")
+    assert m._is_static("You are a helpful assistant that answers questions.")
+
+
+def test_user_messages_not_cached():
+    """Only system messages should get cache_control, not user messages."""
+    m = PromptCachingMiddleware()
+    long_text = "A very long user message. " * 200
+    msgs = [
+        {"role": "system", "content": "Be helpful"},
+        {"role": "user", "content": long_text},
+    ]
+    result = m.inject(msgs, "claude-sonnet-4-6")
+    # User message should NOT get cache_control
+    assert isinstance(result[1]["content"], str)
