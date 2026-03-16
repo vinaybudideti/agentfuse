@@ -25,10 +25,12 @@ class RetryBudgetExhausted(Exception):
 
 class CostAwareRetry:
 
+    # Use the same downgrade map as BudgetEngine for consistency
     RETRY_DOWNGRADE_MAP = {
         "gpt-4o": "gpt-4o-mini",
         "gpt-4-turbo": "gpt-4o-mini",
         "gpt-4.1": "o4-mini",
+        "o1": "o3",
         "o3": "o4-mini",
         "claude-opus-4-6": "claude-sonnet-4-6",
         "claude-sonnet-4-6": "claude-haiku-4-5-20251001",
