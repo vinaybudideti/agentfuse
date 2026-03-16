@@ -116,3 +116,12 @@ def test_gemini_flash_no_overflow():
     cost = p.total_cost("gemini-2.0-flash", 300_000, 50_000)
     expected = p.input_cost("gemini-2.0-flash", 300_000) + p.output_cost("gemini-2.0-flash", 50_000)
     assert abs(cost - expected) < 0.001
+
+
+def test_deepseek_90pct_cache_discount():
+    """DeepSeek cached input must be 90% cheaper than regular."""
+    p = ModelPricingEngine()
+    regular = p.input_cost("deepseek/deepseek-chat", 1_000_000)
+    cached = p.cached_input_cost("deepseek/deepseek-chat", 1_000_000)
+    discount = 1 - (cached / regular)
+    assert abs(discount - 0.90) < 0.01  # 90% discount
