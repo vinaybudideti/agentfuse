@@ -123,3 +123,16 @@ Improvements:
 - pip-audit: 0 vulnerabilities in project dependencies
 
 Final state: 177 unit tests + 44 old tests = 221 total, all green
+
+## Loop Iterations 18-21
+**Date:** 2026-03-16
+
+Improvements:
+- Added Anthropic streaming format test
+- Added dynamic pattern detection + user message tests for prompt cache
+- Added cached_input_cost() to pricing engine
+- Added py.typed marker for PEP 561 type checking
+- Verified 0 construction-only tests
+
+Final state: 181 unit tests + 44 old tests = 225 total, all green
+Core module coverage: 80%+
