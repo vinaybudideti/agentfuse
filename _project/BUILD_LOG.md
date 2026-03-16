@@ -136,3 +136,19 @@ Improvements:
 
 Final state: 181 unit tests + 44 old tests = 225 total, all green
 Core module coverage: 80%+
+
+## Loop Iterations 22-30
+**Date:** 2026-03-16
+
+Major improvements:
+- Implemented Anthropic overflow pricing (>200K: 2x input, 1.5x output)
+- Added FAISS index persistence (save_l2_index / load_l2_index)
+- Added cached_input_cost() to ModelPricingEngine
+- Added __repr__ to BudgetEngine and NormalizedUsage
+- Added py.typed marker for PEP 561
+- Added microdollar conversion + Redis key format tests
+- Added OpenAI Agents Model/Provider tests
+- Added usage normalization edge case tests (Gemini camelCase, no-cache Anthropic)
+- Exported provider modules from providers/__init__.py
+
+Final state: 195 unit tests, all green, 74% total coverage
