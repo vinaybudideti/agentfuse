@@ -79,3 +79,23 @@ Fixes:
 
 Total: 118 unit tests, all green
 Commits: 3
+
+## Loop Iterations 3-8
+**Date:** 2026-03-16
+
+Fixes:
+- Fixed store_compat missing vector tracking for FAISS eviction
+- Fixed 90%+ budget policy: now both downgrades AND compresses
+- Added get_stats() to TwoTierCacheMiddleware
+- Added get_budget_summary() to InMemoryBudgetStore
+- Added CHANGELOG.md
+- Updated observability/__init__.py exports
+
+Tests added:
+- 14 edge case tests (empty messages, unicode, very long, zero cost)
+- 6 prompt cache tests (100% coverage)
+- 4 streaming middleware tests (91% coverage)
+- 7 receipt emitter tests (100% coverage)
+- 8 loop detection tests (mock embedder)
+
+Total: 159 unit tests, all green
