@@ -24,6 +24,10 @@ class NormalizedUsage:
     def total_tokens(self) -> int:
         return self.total_input_tokens + self.total_output_tokens
 
+    def __repr__(self) -> str:
+        return (f"NormalizedUsage(input={self.total_input_tokens}, output={self.total_output_tokens}, "
+                f"cached={self.cached_input_tokens}, provider={self.provider!r})")
+
 
 def extract_usage(provider: str, usage_obj) -> NormalizedUsage:
     """
