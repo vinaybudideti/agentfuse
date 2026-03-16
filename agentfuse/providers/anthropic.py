@@ -135,12 +135,17 @@ def _global_intercepted_create(*args, **kwargs):
 
 def _record_and_cache_anthropic(result, model, engine, pricing, cache,
                                   messages, temperature, tools):
-    """Record cost and cache response for non-streaming Anthropic calls."""
+    """Record cost and cache response for non-streaming Anthropic calls.
+    Uses auto-discovery pattern adapter as fallback."""
     from agentfuse.providers.response import extract_usage
+    from agentfuse.providers.token_pattern import extract_with_pattern
     from agentfuse.core.response_validator import validate_for_cache
     try:
         if hasattr(result, "usage") and result.usage:
-            normalized = extract_usage("anthropic", result.usage)
+            try:
+                normalized = extract_usage("anthropic", result.usage)
+            except Exception:
+                normalized = extract_with_pattern(result.usage, "anthropic")
             actual_cost = pricing.total_cost_normalized(model, normalized)
             engine.record_cost(actual_cost)
 
