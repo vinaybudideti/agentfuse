@@ -27,10 +27,16 @@ class BudgetState(Enum):
 
 
 class BudgetExhaustedGracefully(Exception):
-    def __init__(self, partial_results, receipt):
+    def __init__(self, partial_results, receipt, run_id=None, spent=None, budget=None):
         self.partial_results = partial_results
         self.receipt = receipt
-        super().__init__("Budget exhausted gracefully")
+        self.run_id = run_id
+        self.spent = spent
+        self.budget = budget
+        msg = "Budget exhausted gracefully"
+        if run_id and budget:
+            msg = f"Budget exhausted for run '{run_id}': ${spent:.4f} of ${budget:.2f} spent"
+        super().__init__(msg)
 
 
 class BudgetEngine:
@@ -121,6 +127,9 @@ class BudgetEngine:
         raise BudgetExhaustedGracefully(
             partial_results=self.partial_results,
             receipt=None,
+            run_id=self.run_id,
+            spent=self.spent,
+            budget=self.budget,
         )
 
     def _alert(self, pct, event="budget_alert"):
