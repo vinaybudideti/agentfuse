@@ -90,6 +90,7 @@ class BudgetEngine:
         if pct >= 1.0:
             return self._terminate(messages)
         if pct >= 0.90:
+            self._downgrade()  # Downgrade if not already
             compressed = self._compress(messages)
             return compressed, self.model
         if pct >= 0.80:

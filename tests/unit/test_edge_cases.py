@@ -127,3 +127,31 @@ def test_resolve_slashes_in_model():
     """Models with slashes must route to the prefix provider."""
     provider, _ = resolve_provider("together/llama-3.3-70b")
     assert provider == "together"
+
+
+def test_jump_to_90_pct_both_downgrades_and_compresses():
+    """Going straight to 90%+ must both downgrade AND compress."""
+    engine = BudgetEngine("run_jump90", 1.00, "gpt-4o")
+    engine.spent = 0.85
+    msgs = (
+        [{"role": "system", "content": "sys"}]
+        + [{"role": "user", "content": f"m{i}"} for i in range(10)]
+    )
+    compressed, model = engine.check_and_act(0.06, msgs)
+    # Should downgrade (80%+) AND compress (90%+)
+    assert model == "gpt-4o-mini"
+    non_system = [m for m in compressed if m["role"] != "system"]
+    assert len(non_system) == 6
+
+
+def test_budget_summary():
+    """get_budget_summary returns correct utilization."""
+    from agentfuse.storage.memory import InMemoryBudgetStore
+    store = InMemoryBudgetStore()
+    store.create_run("run1", 10.0)
+    store.check_and_deduct("run1", 3.0)
+    summary = store.get_budget_summary("run1")
+    assert summary["initial_budget"] == 10.0
+    assert summary["remaining"] == 7.0
+    assert summary["spent"] == 3.0
+    assert abs(summary["utilization_pct"] - 30.0) < 0.01

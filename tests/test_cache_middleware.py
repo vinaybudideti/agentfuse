@@ -1,6 +1,6 @@
 import pytest
 from agentfuse.core.cache import CacheMiddleware, CacheHit, CacheMiss
-from agentfuse.core.keys import build_cache_key
+from agentfuse.core.keys import build_cache_key, build_l1_cache_key
 
 
 def test_cache_import():
@@ -76,7 +76,7 @@ def test_repeated_prompts_hit_rate():
     assert hit_rate >= 0.875, f"Hit rate {hit_rate:.1%} is below 87.5% threshold"
 
 
-# --- Tests that would have caught the cache key bugs ---
+# --- Tests that verify cache key isolation ---
 
 def test_different_roles_produce_different_keys():
     """System+user vs user-only must NOT collide."""

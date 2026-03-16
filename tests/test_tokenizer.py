@@ -11,24 +11,30 @@ def test_basic_token_count():
 
 
 def test_claude_model_applies_correction_factor():
-    """Anthropic tokens should be ~15% higher than raw cl100k count."""
+    """Anthropic tokens should be ~20% higher than raw cl100k count."""
     t = TokenCounterAdapter()
     text = "The quick brown fox jumps over the lazy dog"
     gpt_count = t.count_tokens(text, "gpt-4o")
     claude_count = t.count_tokens(text, "claude-sonnet-4-6")
-    # Claude count should be higher due to 1.15x correction
+    # Claude count should be higher due to 1.20x safety margin
     assert claude_count > gpt_count
-    assert claude_count == int(gpt_count * 1.15)
+    import tiktoken
+    enc = tiktoken.get_encoding("cl100k_base")
+    raw = len(enc.encode(text))
+    assert claude_count == int(raw * 1.20)
 
 
 def test_gemini_model_applies_correction_factor():
-    """Gemini tokens should be ~5% higher than raw cl100k count."""
+    """Gemini tokens should be ~25% higher than raw cl100k count."""
     t = TokenCounterAdapter()
     text = "The quick brown fox jumps over the lazy dog"
     gpt_count = t.count_tokens(text, "gpt-4o")
     gemini_count = t.count_tokens(text, "gemini-1.5-pro")
     assert gemini_count >= gpt_count
-    assert gemini_count == int(gpt_count * 1.05)
+    import tiktoken
+    enc = tiktoken.get_encoding("cl100k_base")
+    raw = len(enc.encode(text))
+    assert gemini_count == int(raw * 1.25)
 
 
 def test_messages_token_count():
@@ -38,7 +44,7 @@ def test_messages_token_count():
         {"role": "user", "content": "Hello"}
     ]
     count = t.count_messages_tokens(messages, "gpt-4o")
-    # 3 tokens ("You are helpful") + 4 overhead + 1 token ("Hello") + 4 overhead = 12
+    # 3 tokens ("You are helpful") + 4 overhead + 1 token ("Hello") + 4 overhead + 3 priming = 15
     assert count > 0
 
 

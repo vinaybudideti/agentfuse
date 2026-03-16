@@ -65,6 +65,21 @@ class InMemoryBudgetStore:
             entry = self._cache.get(run_id)
             return entry.remaining if entry else None
 
+    def get_budget_summary(self, run_id: str) -> Optional[dict]:
+        """Get budget summary for debugging and dashboard."""
+        with self._lock:
+            entry = self._cache.get(run_id)
+            if entry is None:
+                return None
+            return {
+                "run_id": entry.run_id,
+                "initial_budget": entry.initial_budget,
+                "remaining": entry.remaining,
+                "spent": entry.initial_budget - entry.remaining,
+                "utilization_pct": ((entry.initial_budget - entry.remaining) / entry.initial_budget * 100)
+                    if entry.initial_budget > 0 else 0,
+            }
+
 
 class AsyncInMemoryBudgetStore:
     """Async-safe budget store using asyncio.Lock."""
