@@ -149,6 +149,18 @@ def test_normalized_usage_repr():
     assert "output=200" in r
 
 
+def test_budget_engine_repr():
+    """BudgetEngine repr must include key state info."""
+    engine = BudgetEngine("repr_test", 5.0, "gpt-4o")
+    engine.record_cost(1.5)
+    r = repr(engine)
+    assert "repr_test" in r
+    assert "$5.00" in r
+    assert "$1.5" in r
+    assert "gpt-4o" in r
+    assert "normal" in r
+
+
 def test_jump_to_90_pct_both_downgrades_and_compresses():
     """Going straight to 90%+ must both downgrade AND compress."""
     engine = BudgetEngine("run_jump90", 1.00, "gpt-4o")
