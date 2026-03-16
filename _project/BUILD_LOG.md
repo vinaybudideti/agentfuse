@@ -201,3 +201,29 @@ Major improvements:
 - Added L1 cache TTL/expiry + store skip tests
 
 Final state: 257 unit tests, 86% core coverage, 88 commits
+
+## Deep Research + Production Hardening
+**Date:** 2026-03-16
+
+### Critical Bug Fixes
+- Anthropic billing: total_cost_normalized() with per-component rates
+- Streaming support: cost recording + caching for stream=True calls
+- All 5 integrations: proper cost recording + new cache API
+- Thread-safe wrap_openai/wrap_anthropic with _wrap_lock
+- L2 cache: exact model match prevents cross-family contamination
+- L2 cache: tool_use isolation prevents tool response for text query
+- Redis circuit breaker: stops trying after 5 failures
+- FAISS NaN/inf validation: prevents C++ segfault
+- Streaming content memory cap: 500KB max
+- Response validation: prevents caching garbage/refusals/truncated
+
+### New Production Features (invented for AgentFuse)
+1. TokenBucketRateLimiter — per-tenant rate limiting
+2. CostAlertManager — threshold alerts with webhook delivery
+3. CostAnomalyDetector — EMA + z-score statistical spike detection
+4. AdaptiveSimilarityThreshold — auto-tuning cache accuracy (novel)
+5. ResponseValidator — prevents cache corruption from bad LLM responses
+6. FallbackModelChain — automatic model switching on failure
+7. CostTracker — unified real-time cost aggregation
+
+Final state: 380 tests (336 unit + 44 old), 88% core coverage, 110 commits
