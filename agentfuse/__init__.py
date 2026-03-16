@@ -21,6 +21,10 @@ from agentfuse.core.adaptive_threshold import AdaptiveSimilarityThreshold
 from agentfuse.core.response_validator import validate_response, validate_for_cache
 from agentfuse.core.fallback_chain import FallbackModelChain
 from agentfuse.core.cost_tracker import CostTracker
+from agentfuse.core.dedup import RequestDeduplicator
+from agentfuse.core.request_optimizer import RequestOptimizer
+from agentfuse.core.load_balancer import ModelLoadBalancer
+from agentfuse.core.middleware import MiddlewarePipeline, LLMRequest, LLMResponse
 from agentfuse.providers.openai import wrap_openai
 from agentfuse.providers.anthropic import wrap_anthropic
 from agentfuse.gateway import completion
@@ -74,6 +78,14 @@ __all__ = [
     # Fallback & tracking
     "FallbackModelChain",
     "CostTracker",
+    # Request optimization
+    "RequestDeduplicator",
+    "RequestOptimizer",
+    "ModelLoadBalancer",
+    # Middleware
+    "MiddlewarePipeline",
+    "LLMRequest",
+    "LLMResponse",
     # Gateway (unified entry point)
     "completion",
     # Provider wrappers (legacy)
