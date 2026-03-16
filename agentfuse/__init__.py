@@ -23,6 +23,7 @@ from agentfuse.core.fallback_chain import FallbackModelChain
 from agentfuse.core.cost_tracker import CostTracker
 from agentfuse.providers.openai import wrap_openai
 from agentfuse.providers.anthropic import wrap_anthropic
+from agentfuse.gateway import completion
 
 __version__ = "0.2.0"
 __version_info__ = (0, 2, 0)
@@ -73,7 +74,9 @@ __all__ = [
     # Fallback & tracking
     "FallbackModelChain",
     "CostTracker",
-    # Provider wrappers
+    # Gateway (unified entry point)
+    "completion",
+    # Provider wrappers (legacy)
     "wrap_openai",
     "wrap_anthropic",
 ]
