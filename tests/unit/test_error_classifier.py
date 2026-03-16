@@ -298,3 +298,49 @@ def test_rate_limit_includes_retry_after():
     exc.response = SimpleNamespace(headers={"Retry-After": "5"})
     result = classify_error(exc, "openai")
     assert result.retry_after == 5.0
+
+
+def test_httpx_timeout():
+    """httpx TimeoutException must be classified as retryable timeout."""
+    class TimeoutException(_MockException):
+        pass
+    TimeoutException.__name__ = "TimeoutException"
+    exc = TimeoutException("Connection timed out")
+    result = classify_error(exc, "httpx")
+    # Won't match _is_httpx_error (wrong module), but provider="httpx" triggers httpx path
+    # Actually no — classify_error checks provider first
+    # With provider="unknown", it falls to unknown. Let me test direct httpx.
+    from agentfuse.core.error_classifier import _classify_httpx
+    result = _classify_httpx(exc, "TimeoutException")
+    assert result.retryable is True
+    assert result.error_type == "timeout"
+
+
+def test_httpx_connect_error():
+    """httpx ConnectError must be classified as retryable connection error."""
+    from agentfuse.core.error_classifier import _classify_httpx
+    class ConnectError(_MockException):
+        pass
+    ConnectError.__name__ = "ConnectError"
+    exc = ConnectError("Connection refused")
+    result = _classify_httpx(exc, "ConnectError")
+    assert result.retryable is True
+    assert result.error_type == "connection"
+
+
+def test_httpx_generic_error():
+    """Generic httpx error must be retryable."""
+    from agentfuse.core.error_classifier import _classify_httpx
+    result = _classify_httpx(Exception("unknown"), "SomeHttpxError")
+    assert result.retryable is True
+    assert result.error_type == "httpx_error"
+
+
+def test_google_unknown_error():
+    """Unknown Google error type must default to retryable."""
+    from agentfuse.core.error_classifier import _classify_google
+    class UnknownGoogleError(_MockException):
+        pass
+    UnknownGoogleError.__name__ = "UnknownGoogleError"
+    result = _classify_google(UnknownGoogleError("something"), "UnknownGoogleError", "something")
+    assert result.retryable is True
