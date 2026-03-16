@@ -67,3 +67,15 @@ Fixes:
 Tests added: 8 new error classifier tests, 1 eviction test
 Total: 112 unit tests, all green
 Commits: 4
+
+## Loop Iteration 2
+**Date:** 2026-03-16
+
+Fixes:
+- Added Mistral/DeepSeek/Grok/Llama token counting with tiktoken + safety margins
+- Added o3/gpt-4.1/o1 to BudgetEngine.DOWNGRADE_MAP
+- Exported budget stores from storage.__init__
+- Added 3 new downgrade path tests, 3 new tokenizer tests
+
+Total: 118 unit tests, all green
+Commits: 3
