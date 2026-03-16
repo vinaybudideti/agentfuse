@@ -81,3 +81,33 @@ def test_async_store_basic():
         assert remaining == 7.0
 
     asyncio.run(run())
+
+
+def test_async_store_reconcile():
+    """Async reconcile must adjust budget correctly."""
+    async def run():
+        store = AsyncInMemoryBudgetStore()
+        await store.create_run("run1", 10.0)
+        await store.check_and_deduct("run1", 5.0)
+        remaining = await store.reconcile("run1", 5.0, 3.0)
+        assert abs(remaining - 7.0) < 0.001
+
+    asyncio.run(run())
+
+
+def test_budget_summary_returns_none_for_missing():
+    """get_budget_summary for missing run must return None."""
+    store = InMemoryBudgetStore()
+    assert store.get_budget_summary("nonexistent") is None
+
+
+def test_original_inmemorystore_backward_compat():
+    """Original InMemoryStore must still work."""
+    from agentfuse.storage.memory import InMemoryStore
+    store = InMemoryStore()
+    store.set("run1", "key1", "value1")
+    assert store.get("run1", "key1") == "value1"
+    assert store.get("run1", "key2", "default") == "default"
+    assert "run1" in store.list_runs()
+    store.delete("run1")
+    assert "run1" not in store.list_runs()
