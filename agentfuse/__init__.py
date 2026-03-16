@@ -13,7 +13,7 @@ from agentfuse.core.streaming import StreamingCostMiddleware, StreamCostLimitRea
 from agentfuse.core.prompt_cache import PromptCachingMiddleware
 from agentfuse.core.receipt import CostReceiptEmitter
 
-__version__ = "0.3.0-alpha"
+__version__ = "0.1.0"
 __all__ = [
     "BudgetEngine",
     "BudgetState",
