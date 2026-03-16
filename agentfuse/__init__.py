@@ -19,6 +19,8 @@ from agentfuse.core.cost_alert import CostAlertManager, CostAlert
 from agentfuse.core.anomaly import CostAnomalyDetector
 from agentfuse.core.adaptive_threshold import AdaptiveSimilarityThreshold
 from agentfuse.core.response_validator import validate_response, validate_for_cache
+from agentfuse.core.fallback_chain import FallbackModelChain
+from agentfuse.core.cost_tracker import CostTracker
 from agentfuse.providers.openai import wrap_openai
 from agentfuse.providers.anthropic import wrap_anthropic
 
@@ -68,6 +70,9 @@ __all__ = [
     # Response validation
     "validate_response",
     "validate_for_cache",
+    # Fallback & tracking
+    "FallbackModelChain",
+    "CostTracker",
     # Provider wrappers
     "wrap_openai",
     "wrap_anthropic",
