@@ -11,8 +11,6 @@ CRITICAL RULES:
 - Side-effect tools → never cache
 """
 
-import hashlib
-import json
 import logging
 import random
 import threading
@@ -111,6 +109,7 @@ class TwoTierCacheMiddleware:
             self._faiss_index = None
 
         self._faiss_metadata: list[_L2Entry] = []
+        self._faiss_vectors: list[np.ndarray] = []  # store vectors for re-indexing on eviction
         self._faiss_lock = threading.Lock()
 
     def _get_embedder(self):
@@ -247,20 +246,23 @@ class TwoTierCacheMiddleware:
 
                 self._faiss_index.add(vec)
                 self._faiss_metadata.append(entry)
+                self._faiss_vectors.append(vec.flatten())
 
         except Exception as e:
             logger.warning("L2 cache store failed: %s", e)
 
     def _evict_oldest_l2(self):
-        """Remove oldest 10% of L2 entries to make room."""
+        """Remove oldest 10% of L2 entries and rebuild FAISS index."""
         n = max(1, len(self._faiss_metadata) // 10)
         import faiss
-        # Rebuild index without oldest entries
+
         self._faiss_metadata = self._faiss_metadata[n:]
+        self._faiss_vectors = self._faiss_vectors[n:]
+
         new_index = faiss.IndexFlatIP(self._faiss_dim)
-        if self._faiss_metadata:
-            # Re-embed remaining entries (expensive but rare)
-            pass  # For now just reset — full rebuild would need stored vectors
+        if self._faiss_vectors:
+            vecs = np.stack(self._faiss_vectors).astype(np.float32)
+            new_index.add(vecs)
         self._faiss_index = new_index
 
     # --- L1 helpers ---

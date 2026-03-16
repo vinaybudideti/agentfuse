@@ -25,6 +25,7 @@ def _make_cache(embedding_dim=768):
     import faiss
     cache._faiss_index = faiss.IndexFlatIP(embedding_dim)
     cache._faiss_metadata = []
+    cache._faiss_vectors = []
     cache._faiss_lock = __import__("threading").Lock()
 
     # Mock embedder that returns deterministic vectors
@@ -136,3 +137,47 @@ def test_l1_local_fallback_works():
     cache._l1_set("test_key", "test_value")
     assert cache._l1_get("test_key") == "test_value"
     assert cache._l1_get("nonexistent") is None
+
+
+def test_l2_eviction_preserves_remaining_entries():
+    """After L2 eviction, remaining entries must still be searchable."""
+    dim = 16  # small dim for speed
+    cache, mock = _make_cache(embedding_dim=dim)
+
+    # Create deterministic vectors
+    vecs = []
+    for i in range(15):
+        v = np.zeros(dim, dtype=np.float32)
+        v[i % dim] = 1.0
+        vecs.append(v)
+
+    cache._max_l2_entries = 10
+
+    # Store 10 entries with unique vectors
+    for i in range(10):
+        mock.encode.return_value = np.array([vecs[i]])
+        msgs = [{"role": "user", "content": f"query {i}"}]
+        # Use new API — need model as first arg
+        from agentfuse.core.cache import _L2Entry, build_l2_metadata_filter
+        meta = build_l2_metadata_filter("gpt-4o")
+        entry = _L2Entry(
+            cache_key=f"key_{i}", model="gpt-4o",
+            model_prefix=meta["model_prefix"],
+            has_tools=False, response=f"response {i}",
+        )
+        with cache._faiss_lock:
+            vec = vecs[i].reshape(1, -1)
+            cache._faiss_index.add(vec)
+            cache._faiss_metadata.append(entry)
+            cache._faiss_vectors.append(vecs[i])
+
+    assert cache._faiss_index.ntotal == 10
+    assert len(cache._faiss_metadata) == 10
+
+    # Store one more to trigger eviction
+    mock.encode.return_value = np.array([vecs[10 % dim]])
+    cache.store("gpt-4o", [{"role": "user", "content": "trigger eviction"}], "new response")
+
+    # After eviction: should have 10 entries (9 remaining + 1 new)
+    assert cache._faiss_index.ntotal == len(cache._faiss_metadata)
+    assert len(cache._faiss_metadata) <= 10
