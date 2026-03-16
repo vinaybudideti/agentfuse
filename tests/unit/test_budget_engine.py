@@ -245,3 +245,27 @@ def test_invalid_budget_raises():
         BudgetEngine("run_invalid", 0.0, "gpt-4o")
     with pytest.raises(ValueError):
         BudgetEngine("run_invalid2", -1.0, "gpt-4o")
+
+
+def test_downgrade_o3_to_o4_mini():
+    """o3 at 80%+ budget must downgrade to o4-mini."""
+    engine = BudgetEngine("run_o3", 1.00, "o3")
+    engine.spent = 0.79
+    _, model = engine.check_and_act(0.01, [{"role": "user", "content": "hi"}])
+    assert model == "o4-mini"
+
+
+def test_downgrade_gpt41_to_o4_mini():
+    """gpt-4.1 at 80%+ budget must downgrade to o4-mini."""
+    engine = BudgetEngine("run_41", 1.00, "gpt-4.1")
+    engine.spent = 0.79
+    _, model = engine.check_and_act(0.01, [{"role": "user", "content": "hi"}])
+    assert model == "o4-mini"
+
+
+def test_no_downgrade_unknown_model():
+    """Unknown model with no downgrade path stays as-is."""
+    engine = BudgetEngine("run_unk", 1.00, "custom-model")
+    engine.spent = 0.79
+    _, model = engine.check_and_act(0.01, [{"role": "user", "content": "hi"}])
+    assert model == "custom-model"
