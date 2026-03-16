@@ -263,6 +263,36 @@ def test_downgrade_gpt41_to_o4_mini():
     assert model == "o4-mini"
 
 
+def test_full_state_machine_progression():
+    """Budget engine must progress through all states correctly."""
+    engine = BudgetEngine("run_sm", 1.00, "gpt-4o")
+    msgs = [{"role": "user", "content": "test"}]
+
+    # 0% — NORMAL
+    assert engine.state == BudgetState.NORMAL
+
+    # 50% — still NORMAL (below 60%)
+    engine.spent = 0.49
+    engine.check_and_act(0.01, msgs)
+    assert engine.state == BudgetState.NORMAL
+
+    # 81% — DOWNGRADED
+    engine.spent = 0.80
+    engine.check_and_act(0.01, msgs)
+    assert engine.state == BudgetState.DOWNGRADED
+    assert engine.model == "gpt-4o-mini"
+
+    # 91% — compression applied (state stays DOWNGRADED since compression doesn't change state enum)
+    engine.spent = 0.90
+    compressed, _ = engine.check_and_act(0.01, [{"role": "system", "content": "sys"}] + [{"role": "user", "content": f"m{i}"} for i in range(10)])
+    assert engine.compression_applied
+
+    # 100% — EXHAUSTED
+    engine.spent = 1.00
+    with pytest.raises(BudgetExhaustedGracefully):
+        engine.check_and_act(0.01, msgs)
+
+
 def test_no_downgrade_unknown_model():
     """Unknown model with no downgrade path stays as-is."""
     engine = BudgetEngine("run_unk", 1.00, "custom-model")
