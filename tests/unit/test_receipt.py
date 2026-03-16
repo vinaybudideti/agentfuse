@@ -85,3 +85,26 @@ def test_step_has_all_fields():
     assert step["tool_name"] == "search"
     assert step["model"] == "gpt-4o"
     assert step["cache_tier"] == 1
+
+
+def test_emit_with_failed_status():
+    """emit(status='failed') must set status correctly."""
+    emitter = CostReceiptEmitter("run_fail", budget_usd=5.0)
+    receipt = emitter.emit(status="failed")
+    assert receipt["status"] == "failed"
+
+
+def test_emit_with_zero_budget():
+    """Zero budget must not cause division by zero."""
+    emitter = CostReceiptEmitter("run_zero", budget_usd=0.0)
+    emitter.add_step("llm_call", "gpt-4o", 100, 50, 0.01, 200)
+    receipt = emitter.emit()
+    assert receipt["budget_utilization_pct"] == 0.0
+
+
+def test_receipt_timestamps_are_iso():
+    """started_at and completed_at must be ISO format strings."""
+    emitter = CostReceiptEmitter("run_ts", budget_usd=5.0)
+    receipt = emitter.emit()
+    assert "T" in receipt["started_at"]
+    assert "T" in receipt["completed_at"]
