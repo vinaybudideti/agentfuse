@@ -23,6 +23,22 @@ class ClassifiedError:
     status_code: Optional[int] = None
     provider: str = "unknown"
     message: str = ""
+    retry_after: Optional[float] = None  # seconds to wait before retry
+
+    @staticmethod
+    def extract_retry_after(exc: Exception) -> Optional[float]:
+        """Extract Retry-After header value from exception, if present."""
+        # Check response headers
+        response = getattr(exc, "response", None)
+        if response:
+            headers = getattr(response, "headers", {})
+            retry_after = headers.get("Retry-After") or headers.get("retry-after")
+            if retry_after:
+                try:
+                    return float(retry_after)
+                except (ValueError, TypeError):
+                    pass
+        return None
 
 
 def classify_error(exc: Exception, provider: str = "unknown") -> ClassifiedError:
@@ -64,10 +80,11 @@ def _classify_openai(exc, exc_type, exc_msg) -> ClassifiedError:
     status = getattr(exc, "status_code", None)
 
     if exc_type == "RateLimitError" or status == 429:
+        retry_after = ClassifiedError.extract_retry_after(exc)
         # CRITICAL: "insufficient_quota" is NOT retryable
         if "insufficient_quota" in exc_msg:
             return ClassifiedError("insufficient_quota", retryable=False, status_code=429, provider="openai", message=str(exc))
-        return ClassifiedError("rate_limit", retryable=True, status_code=429, provider="openai", message=str(exc))
+        return ClassifiedError("rate_limit", retryable=True, status_code=429, provider="openai", message=str(exc), retry_after=retry_after)
 
     if exc_type == "AuthenticationError" or status == 401:
         return ClassifiedError("auth", retryable=False, status_code=401, provider="openai", message=str(exc))

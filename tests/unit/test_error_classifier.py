@@ -270,3 +270,31 @@ def test_openai_status_403_not_retryable():
     exc = _MockException("Forbidden", status_code=403)
     result = classify_error(exc, "openai")
     assert result.retryable is False
+
+
+def test_retry_after_extraction():
+    """Retry-After header must be extracted from exception response."""
+    from agentfuse.core.error_classifier import ClassifiedError
+    from types import SimpleNamespace
+
+    exc = _MockOpenAIRateLimitError("Rate limited")
+    exc.response = SimpleNamespace(headers={"Retry-After": "30"})
+    result = ClassifiedError.extract_retry_after(exc)
+    assert result == 30.0
+
+
+def test_retry_after_missing():
+    """Missing Retry-After must return None."""
+    from agentfuse.core.error_classifier import ClassifiedError
+    exc = _MockException("No header")
+    result = ClassifiedError.extract_retry_after(exc)
+    assert result is None
+
+
+def test_rate_limit_includes_retry_after():
+    """Rate limit classification must include retry_after if present."""
+    exc = _MockOpenAIRateLimitError("Rate limited")
+    from types import SimpleNamespace
+    exc.response = SimpleNamespace(headers={"Retry-After": "5"})
+    result = classify_error(exc, "openai")
+    assert result.retry_after == 5.0
