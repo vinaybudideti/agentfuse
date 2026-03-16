@@ -178,6 +178,20 @@ def test_cache_miss_reason_populated():
     assert result.reason == "temperature > 0.5"
 
 
+def test_store_skips_high_temperature():
+    """store() must skip caching for temperature > 0.5."""
+    cache, mock = _make_cache()
+    mock.encode.return_value = np.array([_random_vec()])
+    # Store at high temp — should be skipped
+    cache.store("gpt-4o", [{"role": "user", "content": "hi"}], "response", temperature=0.9)
+    # L1 should be empty
+    assert cache._l1_get(
+        __import__("agentfuse.core.keys", fromlist=["build_l1_cache_key"]).build_l1_cache_key(
+            "gpt-4o", [{"role": "user", "content": "hi"}], temperature=0.9
+        )
+    ) is None
+
+
 def test_save_and_load_l2_index():
     """FAISS index persistence must round-trip correctly."""
     import tempfile
