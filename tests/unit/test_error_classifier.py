@@ -110,3 +110,73 @@ def test_unknown_exception_defaults_retryable():
     result = classify_error(exc, "unknown-provider")
     assert result.retryable is True
     assert result.error_type == "unknown"
+
+
+def test_anthropic_rate_limit_retryable():
+    """Anthropic 429 rate limit is retryable."""
+    class RateLimitError(_MockException):
+        pass
+    RateLimitError.__name__ = "RateLimitError"
+    exc = RateLimitError("Rate limited", status_code=429)
+    result = classify_error(exc, "anthropic")
+    assert result.retryable is True
+    assert result.error_type == "rate_limit"
+
+
+def test_anthropic_auth_not_retryable():
+    class AuthenticationError(_MockException):
+        pass
+    AuthenticationError.__name__ = "AuthenticationError"
+    exc = AuthenticationError("Bad key", status_code=401)
+    result = classify_error(exc, "anthropic")
+    assert result.retryable is False
+
+
+def test_google_rate_limit():
+    class ClientError(_MockException):
+        pass
+    ClientError.__name__ = "ClientError"
+    exc = ClientError("Too many requests", status_code=429)
+    result = classify_error(exc, "gemini")
+    assert result.retryable is True
+
+
+def test_google_auth_not_retryable():
+    class ClientError(_MockException):
+        pass
+    ClientError.__name__ = "ClientError"
+    exc = ClientError("Unauthorized", status_code=401)
+    result = classify_error(exc, "gemini")
+    assert result.retryable is False
+
+
+def test_google_server_error_retryable():
+    class ServerError(_MockException):
+        pass
+    ServerError.__name__ = "ServerError"
+    exc = ServerError("Internal error", status_code=500)
+    result = classify_error(exc, "gemini")
+    assert result.retryable is True
+
+
+def test_classified_error_has_message():
+    exc = _MockOpenAIServerError("detailed error message")
+    result = classify_error(exc, "openai")
+    assert "detailed error message" in result.message
+
+
+def test_openai_connection_error_retryable():
+    class APIConnectionError(_MockException):
+        pass
+    APIConnectionError.__name__ = "APIConnectionError"
+    exc = APIConnectionError("Connection refused")
+    result = classify_error(exc, "openai")
+    assert result.retryable is True
+    assert result.error_type == "connection"
+
+
+def test_agentfuse_retry_decorator():
+    """agentfuse_retry decorator should work."""
+    from agentfuse.core.error_classifier import agentfuse_retry
+    decorator = agentfuse_retry(max_attempts=2, max_wait=5, provider="openai")
+    assert callable(decorator)
