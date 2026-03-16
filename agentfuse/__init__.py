@@ -16,6 +16,9 @@ from agentfuse.core.receipt import CostReceiptEmitter
 from agentfuse.core.error_classifier import classify_error, ClassifiedError
 from agentfuse.core.rate_limiter import TokenBucketRateLimiter, RateLimitExceeded
 from agentfuse.core.cost_alert import CostAlertManager, CostAlert
+from agentfuse.core.anomaly import CostAnomalyDetector
+from agentfuse.core.adaptive_threshold import AdaptiveSimilarityThreshold
+from agentfuse.core.response_validator import validate_response, validate_for_cache
 from agentfuse.providers.openai import wrap_openai
 from agentfuse.providers.anthropic import wrap_anthropic
 
@@ -58,6 +61,13 @@ __all__ = [
     "RateLimitExceeded",
     "CostAlertManager",
     "CostAlert",
+    # Anomaly detection
+    "CostAnomalyDetector",
+    # Adaptive cache
+    "AdaptiveSimilarityThreshold",
+    # Response validation
+    "validate_response",
+    "validate_for_cache",
     # Provider wrappers
     "wrap_openai",
     "wrap_anthropic",
