@@ -25,6 +25,9 @@ from agentfuse.core.dedup import RequestDeduplicator
 from agentfuse.core.request_optimizer import RequestOptimizer
 from agentfuse.core.load_balancer import ModelLoadBalancer
 from agentfuse.core.middleware import MiddlewarePipeline, LLMRequest, LLMResponse
+from agentfuse.core.cache_quality import CacheQualityTracker
+from agentfuse.core.gcra_limiter import GCRARateLimiter
+from agentfuse.core.batch_detector import BatchEligibilityDetector
 from agentfuse.providers.openai import wrap_openai
 from agentfuse.providers.anthropic import wrap_anthropic
 from agentfuse.gateway import completion
@@ -86,6 +89,10 @@ __all__ = [
     "MiddlewarePipeline",
     "LLMRequest",
     "LLMResponse",
+    # Research-backed features
+    "CacheQualityTracker",
+    "GCRARateLimiter",
+    "BatchEligibilityDetector",
     # Gateway (unified entry point)
     "completion",
     # Provider wrappers (legacy)
