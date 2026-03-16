@@ -1,7 +1,22 @@
-# BudgetEngine: per-run state, graduated policies (alert, downgrade, compress, terminate)
+"""
+BudgetEngine: per-run state, graduated policies (alert, downgrade, compress, terminate).
 
+FIXED in Phase 0:
+- Added ContextVar for per-run isolation in async contexts
+- Added asyncio.Lock for async codepaths (threading.Lock causes deadlocks in async)
+- Separate sync (check_and_act) and async (check_and_act_async) entry points
+- Core logic in _check_and_act_inner, called under appropriate lock
+- Instance-level locks (not class-level) — each run gets its own lock
+"""
+
+import asyncio
 import threading
+from contextvars import ContextVar
 from enum import Enum
+
+
+# Module-level ContextVar: each asyncio Task / thread gets its own copy
+_current_run_id: ContextVar[str | None] = ContextVar('_current_run_id', default=None)
 
 
 class BudgetState(Enum):
@@ -22,15 +37,18 @@ class BudgetEngine:
     DOWNGRADE_MAP = {
         "gpt-4o": "gpt-4o-mini",
         "gpt-4-turbo": "gpt-4o-mini",
+        "gpt-4.1": "o4-mini",
+        "o1": "o3",
+        "o3": "o4-mini",
         "claude-sonnet-4-6": "claude-haiku-4-5-20251001",
         "claude-opus-4-6": "claude-sonnet-4-6",
         "gemini-1.5-pro": "gemini-1.5-flash",
+        "gemini-2.5-pro": "gemini-2.0-flash",
     }
 
     def __init__(self, run_id, budget_usd, model, alert_cb=None):
         if budget_usd <= 0:
             raise ValueError(f"Budget must be > 0, got {budget_usd}")
-        self._lock = threading.Lock()
         self.run_id = run_id
         self.budget = budget_usd
         self.spent = 0.0
@@ -41,11 +59,32 @@ class BudgetEngine:
         self.compression_applied = False
         self.partial_results = []
 
-    def check_and_act(self, estimated_cost, messages):
-        with self._lock:
-            return self._check_and_act_unlocked(estimated_cost, messages)
+        # Instance-level locks — each BudgetEngine gets its own lock
+        # so different runs don't serialize through a shared lock
+        self._sync_lock = threading.Lock()
+        self._async_lock: asyncio.Lock | None = None  # created lazily
 
-    def _check_and_act_unlocked(self, estimated_cost, messages):
+        # Set the ContextVar so async tasks know which run they belong to
+        _current_run_id.set(run_id)
+
+    def _get_async_lock(self) -> asyncio.Lock:
+        """Create asyncio.Lock lazily — can't create at __init__ time outside event loop."""
+        if self._async_lock is None:
+            self._async_lock = asyncio.Lock()
+        return self._async_lock
+
+    def check_and_act(self, estimated_cost, messages):
+        """Sync version — uses threading.Lock."""
+        with self._sync_lock:
+            return self._check_and_act_inner(estimated_cost, messages)
+
+    async def check_and_act_async(self, estimated_cost, messages):
+        """Async version — uses asyncio.Lock (NEVER use threading.Lock in async)."""
+        async with self._get_async_lock():
+            return self._check_and_act_inner(estimated_cost, messages)
+
+    def _check_and_act_inner(self, estimated_cost, messages):
+        """Core logic — called under lock from both sync and async paths."""
         pct = (self.spent + estimated_cost) / self.budget
 
         if pct >= 1.0:
@@ -88,9 +127,19 @@ class BudgetEngine:
             self.alert_cb(pct, event)
 
     def record_cost(self, cost_usd):
-        with self._lock:
+        with self._sync_lock:
+            self.spent += cost_usd
+
+    async def record_cost_async(self, cost_usd):
+        """Async version of record_cost."""
+        async with self._get_async_lock():
             self.spent += cost_usd
 
     def add_partial_result(self, result):
-        with self._lock:
+        with self._sync_lock:
             self.partial_results.append(result)
+
+    @staticmethod
+    def get_current_run_id() -> str | None:
+        """Get the current run_id from ContextVar (async-safe)."""
+        return _current_run_id.get()
