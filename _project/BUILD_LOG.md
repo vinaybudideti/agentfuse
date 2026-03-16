@@ -99,3 +99,15 @@ Tests added:
 - 8 loop detection tests (mock embedder)
 
 Total: 159 unit tests, all green
+
+## Loop Iterations 9-13
+**Date:** 2026-03-16
+
+Improvements:
+- Added CostAwareRetry behavioral tests (retry, no-retry, budget exhaustion, model downgrade)
+- Added advanced cache key tests (_extract_text edge cases, all optional params)
+- Fixed old integration tests for v0.2.0 API (LangChain wrapper, CrewAI hook signatures)
+- pip-audit: 0 vulnerabilities in project dependencies
+
+Total: 219 tests (175 unit + 44 old), all green
+Core module coverage: 80%
