@@ -19,6 +19,13 @@
 - **OpenAI Agents SDK**: `AgentFuseModel` and `AgentFuseModelProvider` classes
 - Token counting for Mistral, DeepSeek, Grok, Llama (tiktoken + safety margins)
 - Model downgrade paths for o3, gpt-4.1, o1
+- Anthropic overflow pricing (>200K input: 2x input, 1.5x output)
+- FAISS index persistence (`save_l2_index` / `load_l2_index`)
+- `cached_input_cost()` for provider cache discounts
+- `get_stats()` and `get_budget_summary()` for observability
+- `__repr__` on BudgetEngine and NormalizedUsage
+- `py.typed` marker for PEP 561 type checking
+- 206 behavioral tests, 85% core coverage
 
 ### Fixed
 - Cache key design: SHA-256 with model always first — cross-model contamination impossible
