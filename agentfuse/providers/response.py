@@ -84,13 +84,23 @@ def _extract_openai(usage) -> NormalizedUsage:
 def _extract_anthropic(usage) -> NormalizedUsage:
     """
     Anthropic: input_tokens EXCLUDES cached tokens.
-    Must add cache_read_input_tokens + cache_creation_input_tokens for total.
+
+    Anthropic billing:
+    - input_tokens: uncached input (billed at full rate)
+    - cache_creation_input_tokens: first-time cache write (billed at 1.25x input rate)
+    - cache_read_input_tokens: subsequent cache reads (billed at 0.1x input rate)
+
+    For TOTAL input tokens (what was actually processed), sum all three.
+    For COST calculation, each component has its own rate — handled by pricing engine.
     """
     input_tokens = _getattr_int(usage, "input_tokens")
     output_tokens = _getattr_int(usage, "output_tokens")
     cache_read = _getattr_int(usage, "cache_read_input_tokens")
     cache_write = _getattr_int(usage, "cache_creation_input_tokens")
 
+    # Total input = uncached + cache_read + cache_write
+    # This is correct per Anthropic docs: input_tokens only counts NEW uncached tokens.
+    # cache_read and cache_write are separate billing line items but still input tokens.
     total_input = input_tokens + cache_read + cache_write
 
     return NormalizedUsage(

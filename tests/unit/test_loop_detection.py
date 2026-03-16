@@ -21,6 +21,7 @@ def _make_loop_detector(sim_threshold=0.92, cost_threshold=0.50):
     # Mock embedder that returns deterministic vectors
     mock = MagicMock()
     detector.embedder = mock
+    detector._lock = __import__("threading").Lock()
     return detector, mock
 
 

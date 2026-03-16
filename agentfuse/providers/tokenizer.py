@@ -81,12 +81,33 @@ class TokenCounterAdapter:
         raise ValueError(f"Unknown model for exact counting: {model}")
 
     def _count_fallback(self, text: str, model: str) -> int:
-        """Universal fallback: character-based estimate."""
-        # ~3.5 chars/token is conservative (better to overestimate for budgets)
+        """Universal fallback: character-based estimate.
+
+        Uses different ratios for CJK-heavy text (Chinese/Japanese/Korean
+        characters are roughly 1-2 chars per token vs ~4 for English).
+        """
+        if not text:
+            return 0
+        cjk_count = sum(1 for c in text if '\u4e00' <= c <= '\u9fff'
+                        or '\u3040' <= c <= '\u30ff'
+                        or '\uac00' <= c <= '\ud7af')
+        cjk_ratio = cjk_count / len(text) if text else 0
+
+        if cjk_ratio > 0.3:
+            # CJK-heavy text: ~1.5 chars per token
+            return max(1, int(len(text) / 1.5))
+        # English/Latin: ~3.5 chars per token (conservative)
         return max(1, int(len(text) / 3.5))
+
+    def _message_overhead(self, model: str) -> int:
+        """Per-message token overhead varies by provider."""
+        if model.startswith("claude"):
+            return 3  # Anthropic uses fewer formatting tokens
+        return 4  # OpenAI/Gemini default
 
     def count_messages(self, messages: list[dict], model: str) -> int:
         """Count tokens for a full message list including role overhead."""
+        overhead = self._message_overhead(model)
         total = 0
         for msg in messages:
             content = msg.get("content", "")
@@ -96,7 +117,7 @@ class TokenCounterAdapter:
                 for block in content:
                     if isinstance(block, dict) and block.get("type") == "text":
                         total += self.count_tokens(block.get("text", ""), model)
-            total += 4  # role + format overhead per message
+            total += overhead  # role + format overhead per message
         total += 3  # reply priming tokens
         return total
 

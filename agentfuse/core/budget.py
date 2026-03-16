@@ -134,7 +134,10 @@ class BudgetEngine:
 
     def _alert(self, pct, event="budget_alert"):
         if self.alert_cb is not None:
-            self.alert_cb(pct, event)
+            try:
+                self.alert_cb(pct, event)
+            except Exception:
+                pass  # Never let alert callback crash budget enforcement
 
     def record_cost(self, cost_usd):
         with self._sync_lock:

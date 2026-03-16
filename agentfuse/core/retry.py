@@ -5,6 +5,10 @@ and automatic model downgrade on retry.
 Uses classify_error from error_classifier for provider-aware retry decisions.
 Users should set max_retries=0 on their SDK clients (openai.OpenAI(), anthropic.Anthropic())
 so AgentFuse has full control over retry behavior.
+
+FIX: retry_cost_spent now resets per wrap() call to prevent premature budget exhaustion.
+FIX: Logs final failure with context for debugging.
+FIX: Recalculates token count after model downgrade for accurate cost tracking.
 """
 
 import time
@@ -61,6 +65,9 @@ class CostAwareRetry:
         tokenizer = TokenCounterAdapter()
         prov = provider or self.provider
 
+        # Reset per-call retry cost to prevent accumulation across calls
+        call_retry_cost = 0.0
+
         attempt = 0
         current_model = model
 
@@ -81,21 +88,32 @@ class CostAwareRetry:
                 )
 
                 if attempt >= self.max_attempts:
+                    logger.warning(
+                        "All %d retry attempts exhausted for model=%s, error=%s",
+                        self.max_attempts, current_model, classified.error_type,
+                    )
                     raise
 
+                # Recalculate token count for current (possibly downgraded) model
                 token_count = tokenizer.count_messages_tokens(
                     messages, current_model
                 )
                 retry_cost = pricing.input_cost(current_model, token_count)
+                call_retry_cost += retry_cost
                 self.retry_cost_spent += retry_cost
 
-                if self.retry_cost_spent > self.max_retry_cost:
+                if call_retry_cost > self.max_retry_cost:
                     raise RetryBudgetExhausted(
-                        retry_cost_spent=self.retry_cost_spent
+                        retry_cost_spent=call_retry_cost
                     )
 
                 current_model = self.RETRY_DOWNGRADE_MAP.get(
                     current_model, current_model
                 )
 
-                time.sleep(2 ** attempt)
+                # Respect Retry-After header if present
+                wait_time = 2 ** attempt
+                if classified.retry_after and classified.retry_after > wait_time:
+                    wait_time = min(classified.retry_after, 60)
+
+                time.sleep(wait_time)

@@ -128,3 +128,33 @@ def record_tokens(model: str, input_tokens: int = 0, output_tokens: int = 0):
             TOKEN_USAGE.labels(model=model, token_type="output").observe(output_tokens)
     except Exception:
         pass
+
+
+def record_budget_remaining(budget_id: str, remaining_usd: float):
+    """Update budget remaining gauge. Never raises."""
+    if not METRICS_AVAILABLE:
+        return
+    try:
+        BUDGET_REMAIN.labels(budget_id=budget_id).set(remaining_usd)
+    except Exception:
+        pass
+
+
+def record_model_fallback(original_model: str, fallback_model: str):
+    """Record a model fallback/downgrade. Never raises."""
+    if not METRICS_AVAILABLE:
+        return
+    try:
+        FALLBACKS.labels(original_model=original_model, fallback_model=fallback_model).inc()
+    except Exception:
+        pass
+
+
+def record_tokens_saved(model: str, tokens: int):
+    """Record tokens saved via caching. Never raises."""
+    if not METRICS_AVAILABLE:
+        return
+    try:
+        TOKENS_SAVED.labels(model=model).inc(tokens)
+    except Exception:
+        pass

@@ -27,16 +27,29 @@ class ClassifiedError:
 
     @staticmethod
     def extract_retry_after(exc: Exception) -> Optional[float]:
-        """Extract Retry-After header value from exception, if present."""
-        # Check response headers
+        """Extract Retry-After header value from exception, if present.
+
+        Handles both numeric seconds ("30") and HTTP-date format
+        ("Wed, 21 Oct 2015 07:28:00 GMT").
+        """
         response = getattr(exc, "response", None)
         if response:
             headers = getattr(response, "headers", {})
             retry_after = headers.get("Retry-After") or headers.get("retry-after")
             if retry_after:
+                # Try numeric first (most common)
                 try:
                     return float(retry_after)
                 except (ValueError, TypeError):
+                    pass
+                # Try HTTP-date format
+                try:
+                    from email.utils import parsedate_to_datetime
+                    import time
+                    target = parsedate_to_datetime(retry_after)
+                    delta = target.timestamp() - time.time()
+                    return max(0.0, delta)
+                except Exception:
                     pass
         return None
 

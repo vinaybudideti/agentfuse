@@ -10,6 +10,7 @@ Pricing is per 1M tokens (USD). Supports 4-tier lookup:
 
 import logging
 import os
+import threading
 import time
 from typing import Optional
 
@@ -87,6 +88,7 @@ class ModelRegistry:
         self._refresh_hours = float(os.environ.get("AGENTFUSE_REGISTRY_REFRESH_HOURS", str(refresh_hours)))
         self._last_refresh: float = 0.0
         self._refresh_attempted = False
+        self._refresh_lock = threading.Lock()
 
     def get_pricing(self, model: str) -> dict:
         """
@@ -104,16 +106,15 @@ class ModelRegistry:
         if model in self._models:
             return self._models[model]
 
-        # Tier 3: fine-tuned model → 2x base price
+        # Tier 3: fine-tuned model → 2x base price (including cached_input)
         if model.startswith("ft:"):
             base_model = self._extract_base_from_ft(model)
             if base_model and base_model in self._models:
                 base = self._models[base_model]
-                return {
-                    **base,
-                    "input": base["input"] * 2,
-                    "output": base["output"] * 2,
-                }
+                ft_pricing = {**base, "input": base["input"] * 2, "output": base["output"] * 2}
+                if "cached_input" in base:
+                    ft_pricing["cached_input"] = base["cached_input"] * 2
+                return ft_pricing
 
         # Tier 4: unknown → warn + zero
         logger.warning("Unknown model '%s' — returning zero pricing. Add to overrides or registry.", model)
@@ -136,13 +137,20 @@ class ModelRegistry:
         return "unknown"
 
     def _maybe_refresh(self):
-        """Check if refresh is needed based on time interval."""
+        """Check if refresh is needed based on time interval. Thread-safe."""
         if self._refresh_hours <= 0:
             return
         now = time.time()
         if now - self._last_refresh < self._refresh_hours * 3600:
             return
-        self._refresh_from_remote()
+        # Prevent concurrent refresh attempts
+        if self._refresh_lock.acquire(blocking=False):
+            try:
+                # Double-check after acquiring lock
+                if time.time() - self._last_refresh >= self._refresh_hours * 3600:
+                    self._refresh_from_remote()
+            finally:
+                self._refresh_lock.release()
 
     def _refresh_from_remote(self):
         """Fetch LiteLLM pricing JSON. Never crashes — logs warning on failure."""
