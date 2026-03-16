@@ -168,3 +168,18 @@ Major improvements:
 - Added cosine similarity edge case tests (zero vector, orthogonal)
 
 Final state: 217 unit tests, 85% core coverage, 63 commits
+
+## Loop Iterations 40-50
+**Date:** 2026-03-16
+
+Major improvements:
+- Added Gemini Pro overflow pricing (>200K: 2x)
+- Added Retry-After header extraction from provider exceptions
+- Added list_providers() and get_provider() helpers
+- Added DeepSeek 90% cache discount verification test
+- Prevented double-wrapping in wrap_openai/wrap_anthropic
+- Added mock response, module detection, and cosine similarity tests
+- Added async budget store reconcile and InMemoryStore backward compat tests
+
+Final state: 235 unit tests, 85% core coverage, 73 commits
+All pushed to github.com/vinaybudideti/agentfuse
