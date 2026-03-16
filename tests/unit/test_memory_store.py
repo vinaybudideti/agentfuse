@@ -111,3 +111,26 @@ def test_original_inmemorystore_backward_compat():
     assert "run1" in store.list_runs()
     store.delete("run1")
     assert "run1" not in store.list_runs()
+
+
+def test_inmemorystore_get_all():
+    """get_all must return all key-value pairs for a run."""
+    from agentfuse.storage.memory import InMemoryStore
+    store = InMemoryStore()
+    store.set("run1", "k1", "v1")
+    store.set("run1", "k2", "v2")
+    all_data = store.get_all("run1")
+    assert all_data == {"k1": "v1", "k2": "v2"}
+
+
+def test_budget_store_multiple_runs():
+    """Budget store must isolate multiple concurrent runs."""
+    store = InMemoryBudgetStore()
+    store.create_run("run1", 10.0)
+    store.create_run("run2", 20.0)
+
+    store.check_and_deduct("run1", 3.0)
+    store.check_and_deduct("run2", 5.0)
+
+    assert store.get_remaining("run1") == 7.0
+    assert store.get_remaining("run2") == 15.0
