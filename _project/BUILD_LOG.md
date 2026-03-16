@@ -52,3 +52,18 @@ Added behavioral tests for pricing, budget boundaries, compression exactness. To
 
 Updated: pyproject.toml (v0.2.0, Python >=3.11, optional deps), __init__.py (full public API), README.md (production language, changelog, comparison table).
 Version verified: `import agentfuse; agentfuse.__version__ == "0.2.0"`.
+
+---
+
+## Loop Iteration 1
+**Date:** 2026-03-16
+
+Fixes:
+- Fixed L2 cache eviction data loss — vectors now stored alongside metadata for re-indexing
+- Upgraded CostAwareRetry to use classify_error instead of string matching
+- Added Llama/Groq/Together/o1 models to registry
+- Removed unused imports in cache.py
+
+Tests added: 8 new error classifier tests, 1 eviction test
+Total: 112 unit tests, all green
+Commits: 4
