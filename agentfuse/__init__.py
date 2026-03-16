@@ -18,6 +18,7 @@ from agentfuse.providers.openai import wrap_openai
 from agentfuse.providers.anthropic import wrap_anthropic
 
 __version__ = "0.2.0"
+__version_info__ = (0, 2, 0)
 __all__ = [
     # Core
     "BudgetEngine",
