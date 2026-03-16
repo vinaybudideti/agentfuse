@@ -19,6 +19,12 @@ class ModelPricingEngine:
         pricing = self._registry.get_pricing(model)
         return (token_count / 1_000_000) * pricing.get("output", 0.0)
 
+    def cached_input_cost(self, model: str, token_count: int) -> float:
+        """Cost for cached input tokens (discounted by providers like Anthropic)."""
+        pricing = self._registry.get_pricing(model)
+        cached_rate = pricing.get("cached_input", pricing.get("input", 0.0))
+        return (token_count / 1_000_000) * cached_rate
+
     def total_cost(self, model: str, input_tokens: int, output_tokens: int) -> float:
         return self.input_cost(model, input_tokens) + self.output_cost(model, output_tokens)
 

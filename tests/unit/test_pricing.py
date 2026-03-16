@@ -55,3 +55,21 @@ def test_estimate_cost_messages():
     messages = [{"role": "user", "content": "Hello world"}]
     cost = p.estimate_cost("gpt-4o", messages)
     assert cost > 0  # Should be tiny but non-zero
+
+
+def test_cached_input_cost_cheaper_than_regular():
+    """Cached input cost must be <= regular input cost."""
+    p = ModelPricingEngine()
+    regular = p.input_cost("claude-sonnet-4-6", 1_000_000)
+    cached = p.cached_input_cost("claude-sonnet-4-6", 1_000_000)
+    assert cached < regular
+    assert cached == 0.30  # Anthropic cached rate
+    assert regular == 3.00
+
+
+def test_cached_input_cost_falls_back_to_regular():
+    """Models without cached_input pricing fall back to regular input."""
+    p = ModelPricingEngine()
+    regular = p.input_cost("mistral-large-latest", 1_000_000)
+    cached = p.cached_input_cost("mistral-large-latest", 1_000_000)
+    assert cached == regular  # No cached rate defined
