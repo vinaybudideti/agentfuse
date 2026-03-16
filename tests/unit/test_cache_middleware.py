@@ -139,6 +139,18 @@ def test_l1_local_fallback_works():
     assert cache._l1_get("nonexistent") is None
 
 
+def test_get_stats_returns_expected_keys():
+    """get_stats() must return cache statistics."""
+    cache, _ = _make_cache()
+    stats = cache.get_stats()
+    assert "l1_local_size" in stats
+    assert "l2_entries" in stats
+    assert "l2_index_total" in stats
+    assert "redis_connected" in stats
+    assert stats["redis_connected"] is False
+    assert stats["l2_entries"] == 0
+
+
 def test_l2_eviction_preserves_remaining_entries():
     """After L2 eviction, remaining entries must still be searchable."""
     dim = 16  # small dim for speed
