@@ -151,6 +151,45 @@ def test_get_stats_returns_expected_keys():
     assert stats["l2_entries"] == 0
 
 
+def test_save_and_load_l2_index():
+    """FAISS index persistence must round-trip correctly."""
+    import tempfile
+    import os
+
+    cache, mock = _make_cache(embedding_dim=16)
+    vec = np.zeros(16, dtype=np.float32)
+    vec[0] = 1.0
+    mock.encode.return_value = np.array([vec])
+
+    # Store an entry
+    from agentfuse.core.cache import _L2Entry, build_l2_metadata_filter
+    meta = build_l2_metadata_filter("gpt-4o")
+    entry = _L2Entry(
+        cache_key="key1", model="gpt-4o",
+        model_prefix=meta["model_prefix"],
+        has_tools=False, response="hello",
+    )
+    with cache._faiss_lock:
+        cache._faiss_index.add(vec.reshape(1, -1))
+        cache._faiss_metadata.append(entry)
+        cache._faiss_vectors.append(vec)
+
+    # Save
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, "test_index")
+        cache.save_l2_index(path)
+        assert os.path.exists(path + ".faiss")
+        assert os.path.exists(path + ".meta.json")
+
+        # Load into a new cache
+        cache2, _ = _make_cache(embedding_dim=16)
+        loaded = cache2.load_l2_index(path)
+        assert loaded
+        assert cache2._faiss_index.ntotal == 1
+        assert len(cache2._faiss_metadata) == 1
+        assert cache2._faiss_metadata[0].response == "hello"
+
+
 def test_l2_eviction_preserves_remaining_entries():
     """After L2 eviction, remaining entries must still be searchable."""
     dim = 16  # small dim for speed

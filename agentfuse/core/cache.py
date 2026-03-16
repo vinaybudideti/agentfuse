@@ -307,6 +307,42 @@ class TwoTierCacheMiddleware:
             "embedding_model": self._embedding_model_name,
         }
 
+    def save_l2_index(self, path: str):
+        """Persist FAISS index and metadata to disk for recovery."""
+        import faiss
+        import json
+        if self._faiss_index is None:
+            return
+        with self._faiss_lock:
+            faiss.write_index(self._faiss_index, path + ".faiss")
+            meta = [
+                {"cache_key": e.cache_key, "model": e.model,
+                 "model_prefix": e.model_prefix, "has_tools": e.has_tools,
+                 "response": e.response, "stored_at": e.stored_at}
+                for e in self._faiss_metadata
+            ]
+            with open(path + ".meta.json", "w") as f:
+                json.dump(meta, f)
+
+    def load_l2_index(self, path: str):
+        """Load FAISS index and metadata from disk."""
+        import faiss
+        import json
+        import os
+        faiss_path = path + ".faiss"
+        meta_path = path + ".meta.json"
+        if not os.path.exists(faiss_path) or not os.path.exists(meta_path):
+            return False
+        with self._faiss_lock:
+            self._faiss_index = faiss.read_index(faiss_path)
+            with open(meta_path) as f:
+                meta_list = json.load(f)
+            self._faiss_metadata = [
+                _L2Entry(**m) for m in meta_list
+            ]
+            self._faiss_vectors = []  # Vectors are in the FAISS index already
+        return True
+
 
     # --- Backward compatibility API ---
 
