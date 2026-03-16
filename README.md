@@ -31,7 +31,7 @@ pip install agentfuse-runtime
 from agentfuse import wrap_openai
 import openai
 
-wrap_openai(budget=5.00, run_id="my_agent")
+wrap_openai(budget_usd=5.00, run_id="my_agent")
 # All subsequent openai.chat.completions.create() calls are now
 # budget-enforced and semantically cached
 ```
@@ -98,14 +98,14 @@ wrap_openai(budget=5.00, run_id="my_agent")
 
 ```python
 from agentfuse import wrap_openai
-wrap_openai(budget=5.00, run_id="my_agent")
+wrap_openai(budget_usd=5.00, run_id="my_agent")
 ```
 
 ### Anthropic
 
 ```python
 from agentfuse import wrap_anthropic
-wrap_anthropic(budget=5.00, run_id="my_agent")
+wrap_anthropic(budget_usd=5.00, run_id="my_agent")
 ```
 
 ### LangChain
