@@ -111,3 +111,23 @@ def test_registry_env_var_refresh_hours():
         assert reg._refresh_hours == 48.0
     finally:
         del os.environ["AGENTFUSE_REGISTRY_REFRESH_HOURS"]
+
+
+def test_registry_graceful_on_bad_remote():
+    """Registry must work even when remote refresh fails."""
+    reg = ModelRegistry(refresh_hours=0)
+    reg.LITELLM_PRICES_URL = "https://nonexistent.example.com/bad"
+    reg._last_refresh = 0
+    reg._refresh_hours = 0.0001
+    # Should not crash — falls back to local prices
+    pricing = reg.get_pricing("gpt-4o")
+    assert pricing["input"] == 2.50
+
+
+def test_registry_get_provider():
+    """get_provider must return correct provider for known models."""
+    reg = ModelRegistry(refresh_hours=0)
+    assert reg.get_provider("gpt-4o") == "openai"
+    assert reg.get_provider("claude-sonnet-4-6") == "anthropic"
+    assert reg.get_provider("gemini-2.5-pro") == "gemini"
+    assert reg.get_provider("deepseek/deepseek-chat") == "deepseek"
