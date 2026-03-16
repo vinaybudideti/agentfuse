@@ -45,10 +45,13 @@ class ModelPricingEngine:
 
         return input_c + output_c
 
+    _tokenizer = None
+
     def estimate_cost(self, model: str, messages: list) -> float:
-        from agentfuse.providers.tokenizer import TokenCounterAdapter
-        counter = TokenCounterAdapter()
-        input_tokens = counter.count_messages_tokens(messages, model)
+        if self._tokenizer is None:
+            from agentfuse.providers.tokenizer import TokenCounterAdapter
+            self._tokenizer = TokenCounterAdapter()
+        input_tokens = self._tokenizer.count_messages_tokens(messages, model)
         return self.input_cost(model, input_tokens)
 
     def is_supported(self, model: str) -> bool:
