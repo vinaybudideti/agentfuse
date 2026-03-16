@@ -151,6 +151,33 @@ def test_get_stats_returns_expected_keys():
     assert stats["l2_entries"] == 0
 
 
+def test_l1_set_with_custom_ttl():
+    """L1 set with custom TTL must work."""
+    cache, _ = _make_cache()
+    cache._l1_set("key1", "value1", ttl=60)
+    assert cache._l1_get("key1") == "value1"
+
+
+def test_l1_get_returns_none_for_expired():
+    """L1 get for expired keys must return None."""
+    from cachetools import TTLCache
+    cache, _ = _make_cache()
+    # Replace with very short TTL cache for testing
+    cache._local_l1 = TTLCache(maxsize=10, ttl=0.001)
+    cache._l1_set("key1", "value1")
+    import time
+    time.sleep(0.01)
+    assert cache._l1_get("key1") is None
+
+
+def test_cache_miss_reason_populated():
+    """CacheMiss must have a reason when applicable."""
+    cache, _ = _make_cache()
+    result = cache.lookup("gpt-4o", [{"role": "user", "content": "test"}], temperature=0.9)
+    assert isinstance(result, CacheMiss)
+    assert result.reason == "temperature > 0.5"
+
+
 def test_save_and_load_l2_index():
     """FAISS index persistence must round-trip correctly."""
     import tempfile
