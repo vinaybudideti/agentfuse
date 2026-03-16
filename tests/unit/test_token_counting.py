@@ -132,3 +132,13 @@ def test_grok_uses_tiktoken_with_margin():
     text = "Hello world test"
     count = t.count_tokens(text, "grok-4.1-fast")
     assert count > 0
+
+
+def test_gpt41_uses_o200k_encoding():
+    """GPT-4.1 must use o200k_base (same as GPT-4o)."""
+    t = TokenCounterAdapter()
+    text = "The quick brown fox jumps over the lazy dog"
+    count_4o = t.count_tokens(text, "gpt-4o")
+    count_41 = t.count_tokens(text, "gpt-4.1")
+    # Both should use o200k_base
+    assert count_4o == count_41
