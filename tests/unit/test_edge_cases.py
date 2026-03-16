@@ -129,6 +129,26 @@ def test_resolve_slashes_in_model():
     assert provider == "together"
 
 
+def test_registry_list_models():
+    """list_models must return sorted model names."""
+    from agentfuse.providers.registry import ModelRegistry
+    r = ModelRegistry(refresh_hours=0)
+    models = r.list_models()
+    assert len(models) > 15
+    assert models == sorted(models)
+    assert "gpt-4o" in models
+    assert "claude-sonnet-4-6" in models
+
+
+def test_normalized_usage_repr():
+    """NormalizedUsage repr must be readable."""
+    from agentfuse.providers.response import NormalizedUsage
+    u = NormalizedUsage(total_input_tokens=100, total_output_tokens=200, provider="openai")
+    r = repr(u)
+    assert "input=100" in r
+    assert "output=200" in r
+
+
 def test_jump_to_90_pct_both_downgrades_and_compresses():
     """Going straight to 90%+ must both downgrade AND compress."""
     engine = BudgetEngine("run_jump90", 1.00, "gpt-4o")

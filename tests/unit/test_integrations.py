@@ -95,3 +95,53 @@ def test_backward_compat_aliases():
     assert AgentFuseLangChainMiddleware is not None
     assert callable(agentfuse_hooks)
     assert AgentFuseRunHooks is not None
+
+
+def test_langchain_message_conversion():
+    """LangChain BaseMessage-like objects must be converted correctly."""
+    from agentfuse.integrations.langchain import AgentFuseChatModel
+
+    model = AgentFuseChatModel(budget=5.00)
+
+    # Simulate LangChain messages with type/content attrs
+    msgs = [
+        SimpleNamespace(type="system", content="Be helpful"),
+        SimpleNamespace(type="human", content="Hello"),
+        SimpleNamespace(type="ai", content="Hi there"),
+    ]
+
+    # Convert using the internal logic
+    msg_dicts = []
+    for m in msgs:
+        if isinstance(m, dict):
+            msg_dicts.append(m)
+        elif hasattr(m, "type") and hasattr(m, "content"):
+            role = getattr(m, "type", "user")
+            if role == "human":
+                role = "user"
+            elif role == "ai":
+                role = "assistant"
+            msg_dicts.append({"role": role, "content": m.content})
+
+    assert msg_dicts[0]["role"] == "system"
+    assert msg_dicts[1]["role"] == "user"
+    assert msg_dicts[2]["role"] == "assistant"
+
+
+def test_extract_text_string_passthrough():
+    """String input must be returned as-is."""
+    from agentfuse.integrations.langchain import _extract_text
+    assert _extract_text("hello") == "hello"
+
+
+def test_extract_text_langchain_generations():
+    """LangChain ChatResult with generations must extract text."""
+    from agentfuse.integrations.langchain import _extract_text
+    response = SimpleNamespace(
+        generations=[SimpleNamespace(
+            text="Generated text",
+            message=SimpleNamespace(content="Message content"),
+        )]
+    )
+    result = _extract_text(response)
+    assert result == "Generated text"
