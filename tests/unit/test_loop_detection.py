@@ -113,3 +113,21 @@ def test_cosine_sim_identical_vectors():
     vec = _unit_vec(seed=1)
     sim = detector._cosine_sim(vec, vec)
     assert abs(sim - 1.0) < 0.001
+
+
+def test_cosine_sim_zero_vector():
+    """Cosine similarity with zero vector must return 0.0."""
+    detector, _ = _make_loop_detector()
+    vec = _unit_vec(seed=1)
+    zero = [0.0] * len(vec)
+    sim = detector._cosine_sim(vec, zero)
+    assert sim == 0.0
+
+
+def test_cosine_sim_orthogonal_vectors():
+    """Orthogonal vectors must have ~0.0 similarity."""
+    detector, _ = _make_loop_detector()
+    a = [1.0, 0.0, 0.0]
+    b = [0.0, 1.0, 0.0]
+    sim = detector._cosine_sim(a, b)
+    assert abs(sim) < 0.001
