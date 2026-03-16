@@ -38,6 +38,11 @@ class ModelPricingEngine:
             input_c *= 2
             output_c *= 1.5
 
+        # Gemini Pro overflow: >200K input → 2x pricing
+        if "pro" in model and model.startswith("gemini") and input_tokens > 200_000:
+            input_c *= 2
+            output_c *= 2
+
         return input_c + output_c
 
     def estimate_cost(self, model: str, messages: list) -> float:

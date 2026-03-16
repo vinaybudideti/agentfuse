@@ -98,3 +98,21 @@ def test_openai_no_overflow_pricing():
     # Should scale linearly (3x input but same output)
     expected = p.input_cost("gpt-4o", 300_000) + p.output_cost("gpt-4o", 50_000)
     assert abs(cost_large - expected) < 0.001
+
+
+def test_gemini_pro_overflow_pricing():
+    """Gemini Pro >200K input triggers 2x pricing."""
+    p = ModelPricingEngine()
+    normal = p.total_cost("gemini-2.5-pro", 100_000, 50_000)
+    overflow = p.total_cost("gemini-2.5-pro", 300_000, 50_000)
+    # Overflow should be more expensive than linear scaling
+    linear = p.input_cost("gemini-2.5-pro", 300_000) + p.output_cost("gemini-2.5-pro", 50_000)
+    assert overflow > linear
+
+
+def test_gemini_flash_no_overflow():
+    """Gemini Flash should not have overflow pricing (not a 'pro' model)."""
+    p = ModelPricingEngine()
+    cost = p.total_cost("gemini-2.0-flash", 300_000, 50_000)
+    expected = p.input_cost("gemini-2.0-flash", 300_000) + p.output_cost("gemini-2.0-flash", 50_000)
+    assert abs(cost - expected) < 0.001
