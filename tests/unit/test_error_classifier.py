@@ -180,3 +180,40 @@ def test_agentfuse_retry_decorator():
     from agentfuse.core.error_classifier import agentfuse_retry
     decorator = agentfuse_retry(max_attempts=2, max_wait=5, provider="openai")
     assert callable(decorator)
+
+
+def test_google_bad_request_not_retryable():
+    """Google 400 bad request is not retryable."""
+    class ClientError(_MockException):
+        pass
+    ClientError.__name__ = "ClientError"
+    exc = ClientError("Bad request", status_code=400)
+    result = classify_error(exc, "gemini")
+    assert result.retryable is False
+
+
+def test_anthropic_bad_request_not_retryable():
+    """Anthropic 400 context window exceeded is not retryable."""
+    class BadRequestError(_MockException):
+        pass
+    BadRequestError.__name__ = "BadRequestError"
+    exc = BadRequestError("context too long", status_code=400)
+    result = classify_error(exc, "anthropic")
+    assert result.retryable is False
+
+
+def test_anthropic_server_error_retryable():
+    """Anthropic 500 is retryable."""
+    class InternalServerError(_MockException):
+        pass
+    InternalServerError.__name__ = "InternalServerError"
+    exc = InternalServerError("Server error", status_code=500)
+    result = classify_error(exc, "anthropic")
+    assert result.retryable is True
+
+
+def test_openai_status_408_retryable():
+    """OpenAI 408 (request timeout) is retryable."""
+    exc = _MockException("Request timeout", status_code=408)
+    result = classify_error(exc, "openai")
+    assert result.retryable is True
