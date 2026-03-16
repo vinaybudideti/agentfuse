@@ -48,3 +48,22 @@ def test_multiple_slashes():
     """Provider/subpath/model must use the first segment as provider."""
     provider, url = resolve_provider("together/meta-llama/Llama-3")
     assert provider == "together"
+
+
+def test_list_providers():
+    """list_providers must return all configured providers."""
+    from agentfuse.providers.router import list_providers
+    providers = list_providers()
+    assert "deepseek" in providers
+    assert "groq" in providers
+    assert "ollama" in providers
+    assert len(providers) >= 10
+
+
+def test_get_provider_from_registry():
+    """ModelRegistry.get_provider must return correct provider."""
+    from agentfuse.providers.registry import ModelRegistry
+    r = ModelRegistry(refresh_hours=0)
+    assert r.get_provider("gpt-4o") == "openai"
+    assert r.get_provider("claude-sonnet-4-6") == "anthropic"
+    assert r.get_provider("gemini-2.5-pro") == "gemini"
