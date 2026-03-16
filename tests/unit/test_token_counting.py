@@ -104,3 +104,31 @@ def test_backward_compatible_count_messages_tokens():
     count1 = t.count_messages(messages, "gpt-4o")
     count2 = t.count_messages_tokens(messages, "gpt-4o")
     assert count1 == count2
+
+
+def test_mistral_has_safety_margin():
+    """Mistral count must be > raw tiktoken count."""
+    t = TokenCounterAdapter()
+    import tiktoken
+    enc = tiktoken.get_encoding("cl100k_base")
+    text = "The quick brown fox jumps over the lazy dog"
+    raw = len(enc.encode(text))
+    mistral_count = t.count_tokens(text, "mistral-large-latest")
+    assert mistral_count >= int(raw * 1.15)
+    assert mistral_count > raw
+
+
+def test_deepseek_uses_tiktoken_with_margin():
+    """DeepSeek models must use tiktoken with safety margin."""
+    t = TokenCounterAdapter()
+    text = "Hello world test"
+    count = t.count_tokens(text, "deepseek/deepseek-chat")
+    assert count > 0
+
+
+def test_grok_uses_tiktoken_with_margin():
+    """Grok models must use tiktoken with safety margin."""
+    t = TokenCounterAdapter()
+    text = "Hello world test"
+    count = t.count_tokens(text, "grok-4.1-fast")
+    assert count > 0

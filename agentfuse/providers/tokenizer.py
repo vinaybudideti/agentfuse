@@ -1,58 +1,106 @@
 """
-TokenCounterAdapter: tiktoken for OpenAI, provider-specific estimation
-for Anthropic and Google models.
+TokenCounterAdapter: provider-aware token counter with a 4-tier fallback chain.
 
-OpenAI: exact via tiktoken
-Anthropic: cl100k_base * 1.15 correction factor (Anthropic tokenizer runs ~15% higher)
-Google: cl100k_base * 1.05 correction factor (Gemini tokenizer is closer to cl100k)
-Unknown: len(text) // 4 fallback
+FIXED in Phase 0:
+- GPT-4o/o3/o4 now use o200k_base encoding (was using cl100k_base via encoding_for_model)
+- Anthropic safety margin increased from 1.15x to 1.20x (prevents budget underrun)
+- Gemini safety margin increased from 1.05x to 1.25x (prevents budget underrun)
+- Added multimodal content block handling in count_messages
+- Added reply priming tokens (3) to message count
+- Fallback uses len(text) / 3.5 (more conservative than // 4)
+
+Tier 1: Exact local tokenizer (OpenAI via tiktoken)
+Tier 2: Provider API (Anthropic/Gemini count_tokens — free, not implemented yet)
+Tier 3: tiktoken cl100k_base with safety margin (Anthropic/Gemini fallback)
+Tier 4: len(text) / 3.5 character estimate (unknown models)
 """
 
-from agentfuse.core.keys import _extract_text
+import functools
 
-
-# Correction factors based on empirical comparison of tokenizers.
-# Anthropic's tokenizer produces ~15% more tokens than cl100k_base on average.
-# Gemini's tokenizer produces ~5% more tokens than cl100k_base on average.
-_ANTHROPIC_CORRECTION = 1.15
-_GEMINI_CORRECTION = 1.05
+import tiktoken
 
 
 class TokenCounterAdapter:
+    """
+    Provider-aware token counter with a 4-tier fallback chain.
+    """
 
-    def _get_cl100k(self):
-        import tiktoken
-        return tiktoken.get_encoding("cl100k_base")
+    @functools.lru_cache(maxsize=8)
+    def _get_tiktoken_encoder(self, encoding_name: str):
+        return tiktoken.get_encoding(encoding_name)
 
     def count_tokens(self, text: str, model: str) -> int:
         if not text:
             return 0
+        try:
+            return self._count_exact(text, model)
+        except Exception:
+            return self._count_fallback(text, model)
 
-        if model.startswith("gpt") or model.startswith("o3"):
-            import tiktoken
-            try:
-                enc = tiktoken.encoding_for_model(model)
-            except KeyError:
-                enc = self._get_cl100k()
+    def _count_exact(self, text: str, model: str) -> int:
+        # OpenAI GPT-4o, o1, o3, o4 models: use o200k_base encoding
+        if model.startswith(("gpt-4o", "o1", "o3", "o4")):
+            enc = tiktoken.encoding_for_model("gpt-4o")  # o200k_base
             return len(enc.encode(text))
 
+        # OpenAI GPT-4, GPT-3.5 models: use cl100k_base encoding
+        if model.startswith(("gpt-4", "gpt-3.5")):
+            enc = tiktoken.encoding_for_model("gpt-4")  # cl100k_base
+            return len(enc.encode(text))
+
+        # Anthropic: tiktoken cl100k_base + 20% safety margin
         if model.startswith("claude"):
-            enc = self._get_cl100k()
-            base_count = len(enc.encode(text))
-            return int(base_count * _ANTHROPIC_CORRECTION)
+            enc = self._get_tiktoken_encoder("cl100k_base")
+            return int(len(enc.encode(text)) * 1.20)
 
+        # Gemini: tiktoken cl100k_base + 25% safety margin
         if model.startswith("gemini"):
-            enc = self._get_cl100k()
-            base_count = len(enc.encode(text))
-            return int(base_count * _GEMINI_CORRECTION)
+            enc = self._get_tiktoken_encoder("cl100k_base")
+            return int(len(enc.encode(text)) * 1.25)
 
-        return len(text) // 4
+        # Mistral: tiktoken cl100k_base + 15% safety margin
+        if model.startswith("mistral"):
+            enc = self._get_tiktoken_encoder("cl100k_base")
+            return int(len(enc.encode(text)) * 1.15)
 
-    def count_messages_tokens(self, messages: list, model: str) -> int:
+        # Llama / Groq / Together hosted models
+        if any(model.startswith(p) for p in ("llama", "groq/", "together/")):
+            enc = self._get_tiktoken_encoder("cl100k_base")
+            return int(len(enc.encode(text)) * 1.10)
+
+        # DeepSeek: tiktoken cl100k_base + 10% safety margin
+        if model.startswith("deepseek"):
+            enc = self._get_tiktoken_encoder("cl100k_base")
+            return int(len(enc.encode(text)) * 1.10)
+
+        # Grok / xAI
+        if model.startswith("grok"):
+            enc = self._get_tiktoken_encoder("cl100k_base")
+            return int(len(enc.encode(text)) * 1.15)
+
+        raise ValueError(f"Unknown model for exact counting: {model}")
+
+    def _count_fallback(self, text: str, model: str) -> int:
+        """Universal fallback: character-based estimate."""
+        # ~3.5 chars/token is conservative (better to overestimate for budgets)
+        return max(1, int(len(text) / 3.5))
+
+    def count_messages(self, messages: list[dict], model: str) -> int:
+        """Count tokens for a full message list including role overhead."""
         total = 0
-        for message in messages:
-            content = message.get("content", "") if isinstance(message, dict) else ""
-            text = _extract_text(content)
-            total += self.count_tokens(text, model)
-            total += 4  # role/format overhead per message
+        for msg in messages:
+            content = msg.get("content", "")
+            if isinstance(content, str):
+                total += self.count_tokens(content, model)
+            elif isinstance(content, list):  # multi-modal content blocks
+                for block in content:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        total += self.count_tokens(block.get("text", ""), model)
+            total += 4  # role + format overhead per message
+        total += 3  # reply priming tokens
         return total
+
+    # Backward compatibility alias
+    def count_messages_tokens(self, messages: list, model: str) -> int:
+        """Backward-compatible alias for count_messages."""
+        return self.count_messages(messages, model)
