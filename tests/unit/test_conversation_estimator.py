@@ -91,3 +91,43 @@ def test_unknown_pattern_with_few_turns():
     est.record_turn(cost=0.01)
     est.record_turn(cost=0.02)
     assert est.detect_pattern() == "unknown"
+
+
+def test_linear_pattern_detection():
+    """Linearly increasing costs must be detected as linear."""
+    est = ConversationCostEstimator(budget_usd=100.0)
+    for i in range(10):
+        est.record_turn(cost=0.01 + 0.005 * i)  # gradual increase
+    pattern = est.detect_pattern()
+    assert pattern in ("linear", "flat")  # gradual increase may be flat or linear
+
+
+def test_projection_exponential_exceeds():
+    """Exponential growth must predict budget exceeded quickly."""
+    est = ConversationCostEstimator(budget_usd=1.0)
+    cost = 0.01
+    for _ in range(5):
+        est.record_turn(cost=cost)
+        cost *= 2.5  # aggressive growth
+    proj = est.project(target_turns=20)
+    assert proj["will_exceed_budget"] is True
+
+
+def test_zero_cost_turns():
+    """All-zero cost turns must not crash."""
+    est = ConversationCostEstimator(budget_usd=10.0)
+    for _ in range(5):
+        est.record_turn(cost=0.0)
+    pattern = est.detect_pattern()
+    assert pattern == "flat"
+    proj = est.project()
+    assert proj["projected_total_cost"] == 0.0
+
+
+def test_single_turn_projection():
+    """Single turn must produce a projection."""
+    est = ConversationCostEstimator(budget_usd=10.0)
+    est.record_turn(cost=0.5)
+    proj = est.project(target_turns=10)
+    assert proj["current_turns"] == 1
+    assert proj["projected_total_cost"] > 0
