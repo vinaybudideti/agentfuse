@@ -30,7 +30,7 @@ from agentfuse.core.gcra_limiter import GCRARateLimiter
 from agentfuse.core.batch_detector import BatchEligibilityDetector
 from agentfuse.providers.openai import wrap_openai
 from agentfuse.providers.anthropic import wrap_anthropic
-from agentfuse.gateway import completion
+from agentfuse.gateway import completion, get_spend_report
 
 __version__ = "0.2.0"
 __version_info__ = (0, 2, 0)
@@ -95,6 +95,7 @@ __all__ = [
     "BatchEligibilityDetector",
     # Gateway (unified entry point)
     "completion",
+    "get_spend_report",
     # Provider wrappers (legacy)
     "wrap_openai",
     "wrap_anthropic",

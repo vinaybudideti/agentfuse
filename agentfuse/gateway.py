@@ -68,6 +68,19 @@ _engines: dict[str, BudgetEngine] = {}
 _cache = TwoTierCacheMiddleware()
 _pricing = ModelPricingEngine()
 _tokenizer = TokenCounterAdapter()
+_spend_ledger = None  # lazily initialized
+
+
+def _get_ledger():
+    """Lazily initialize the SpendLedger."""
+    global _spend_ledger
+    if _spend_ledger is None:
+        try:
+            from agentfuse.storage.spend_ledger import SpendLedger
+            _spend_ledger = SpendLedger()
+        except Exception:
+            pass
+    return _spend_ledger
 
 
 def completion(
@@ -291,6 +304,21 @@ def _record_cost(result, model, provider, engine):
             if engine:
                 engine.record_cost(actual_cost)
 
+            # Record to persistent ledger (out of hot path — append-only file)
+            ledger = _get_ledger()
+            if ledger:
+                try:
+                    ledger.record(
+                        run_id=engine.run_id if engine else "untracked",
+                        model=model,
+                        cost_usd=actual_cost,
+                        provider=provider,
+                        input_tokens=normalized.total_input_tokens,
+                        output_tokens=normalized.total_output_tokens,
+                    )
+                except Exception:
+                    pass
+
             # Record metrics
             if _METRICS:
                 try:
@@ -355,3 +383,20 @@ def cleanup(budget_id: Optional[str] = None):
             _engines.pop(budget_id, None)
         else:
             _engines.clear()
+
+
+def get_spend_report() -> dict:
+    """Get a spend report from the persistent ledger.
+
+    Returns dict with total_usd, by_model, by_provider, by_run.
+    This data survives process restarts (persisted to JSONL).
+    """
+    ledger = _get_ledger()
+    if ledger is None:
+        return {"total_usd": 0.0, "by_model": {}, "by_provider": {}, "by_run": {}}
+    return {
+        "total_usd": ledger.get_total_spend(),
+        "by_model": ledger.get_spend_by_model(),
+        "by_provider": ledger.get_spend_by_provider(),
+        "by_run": ledger.get_spend_by_run(),
+    }
