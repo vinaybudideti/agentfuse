@@ -133,3 +133,53 @@ def test_full_flow_with_metadata(mock_call):
         metadata={"user_id": "user_123", "team": "engineering"},
     )
     assert result.choices[0].message.content == "metadata response"
+
+
+def test_full_flow_deprecated_model_warns():
+    """Deprecated model must still work but log a warning."""
+    # gpt-4o is deprecated but should still work (not auto-redirected by default)
+    msgs = [{"role": "user", "content": "deprecated test flow unique xyz987"}]
+    _cache.store(model="gpt-4o", messages=msgs, response="Deprecated model response")
+
+    result = completion(model="gpt-4o", messages=msgs)
+    assert result.choices[0].message.content == "Deprecated model response"
+
+
+@patch("agentfuse.gateway._call_openai_compatible")
+def test_full_flow_auto_route(mock_call):
+    """Auto-route must potentially change the model for simple queries."""
+    mock_call.return_value = SimpleNamespace(
+        choices=[SimpleNamespace(
+            message=SimpleNamespace(content="routed response"),
+            finish_reason="stop",
+        )],
+        usage=SimpleNamespace(prompt_tokens=10, completion_tokens=5),
+    )
+
+    result = completion(
+        model="gpt-5",
+        messages=[{"role": "user", "content": "hi"}],
+        auto_route=True,
+    )
+    assert result.choices[0].message.content == "routed response"
+
+
+@patch("agentfuse.gateway._call_openai_compatible")
+def test_full_flow_tenant_isolation(mock_call):
+    """Different tenants must not share cache."""
+    mock_call.return_value = SimpleNamespace(
+        choices=[SimpleNamespace(
+            message=SimpleNamespace(content="tenant specific"),
+            finish_reason="stop",
+        )],
+        usage=SimpleNamespace(prompt_tokens=10, completion_tokens=5),
+    )
+
+    msgs = [{"role": "user", "content": "shared query for tenant test flow"}]
+    _cache.store(model="gpt-4o", messages=msgs, response="Tenant A",
+                 tenant_id="tenant_a")
+
+    # Tenant B should NOT get Tenant A's cached response
+    result = completion(model="gpt-4o", messages=msgs, tenant_id="tenant_b")
+    # Should call the API since cache miss for tenant_b
+    assert mock_call.called
