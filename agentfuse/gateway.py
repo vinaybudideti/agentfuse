@@ -49,6 +49,8 @@ from agentfuse.providers.router import resolve_provider
 from agentfuse.providers.response import extract_usage
 from agentfuse.providers.token_pattern import extract_with_pattern
 from agentfuse.providers.mock_responses import MockOpenAIResponse, MockAnthropicResponse
+from agentfuse.core.request_optimizer import RequestOptimizer
+from agentfuse.core.model_router import IntelligentModelRouter
 
 # Observability imports — all optional, never crash if unavailable
 try:
@@ -68,6 +70,8 @@ _engines: dict[str, BudgetEngine] = {}
 _cache = TwoTierCacheMiddleware()
 _pricing = ModelPricingEngine()
 _tokenizer = TokenCounterAdapter()
+_optimizer = RequestOptimizer(_pricing, _tokenizer)
+_router = IntelligentModelRouter()
 _spend_ledger = None  # lazily initialized
 
 
@@ -126,9 +130,7 @@ def completion(
     provider, base_url = resolve_provider(model)
 
     # Step 0a: Optimize request (remove empty/duplicate messages)
-    from agentfuse.core.request_optimizer import RequestOptimizer
-    optimizer = RequestOptimizer(_pricing, _tokenizer)
-    messages, opt_report = optimizer.optimize(messages, model)
+    messages, opt_report = _optimizer.optimize(messages, model)
     if opt_report.messages_removed > 0:
         logger.info("Request optimized: saved %d tokens ($%.6f)",
                      opt_report.estimated_tokens_saved, opt_report.estimated_cost_saving_usd)
@@ -136,9 +138,7 @@ def completion(
     # Step 0b: Intelligent model routing (RouteLLM-inspired)
     # Routes simple queries to cheaper models for 70%+ cost savings
     if auto_route:
-        from agentfuse.core.model_router import IntelligentModelRouter
-        router = IntelligentModelRouter()
-        model = router.route(model, messages)
+        model = _router.route(model, messages)
         provider, base_url = resolve_provider(model)  # re-resolve after routing
 
     # Get or create budget engine
