@@ -77,6 +77,11 @@ KNOWN_TOOL_COSTS = {
     "wolfram_alpha": 0.01,       # Wolfram API
     "weather_api": 0.001,        # weather APIs
     "database_query": 0.0,       # internal, no external cost
+    # Image generation
+    "dall_e_3": 0.04,            # DALL-E 3 standard quality per image
+    "gpt_image_1": 0.042,       # GPT Image 1 medium quality per image
+    "gpt_image_1_mini": 0.005,  # GPT Image 1 Mini low quality per image
+    "gpt_image_1_5": 0.04,      # GPT Image 1.5 standard per image
 }
 
 
