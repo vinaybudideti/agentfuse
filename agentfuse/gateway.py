@@ -77,12 +77,15 @@ _optimizer = RequestOptimizer(_pricing, _tokenizer)
 _router = IntelligentModelRouter()
 _dedup = RequestDeduplicator()
 _alert_manager = None  # lazily initialized via configure()
+_rate_limiter = None  # lazily initialized via configure()
 
 
 def configure(
     alert_callback=None,
     alert_webhook_url: Optional[str] = None,
     alert_thresholds: Optional[list[float]] = None,
+    rate_limit_rps: Optional[float] = None,
+    rate_limit_burst: int = 5,
 ):
     """Configure gateway-level settings.
 
@@ -90,8 +93,10 @@ def configure(
         alert_callback: Function called when cost threshold is crossed
         alert_webhook_url: URL to POST cost alerts to (e.g., Slack webhook)
         alert_thresholds: List of budget percentages to alert at (default: [0.50, 0.75, 0.90])
+        rate_limit_rps: Max requests per second per tenant (None = no limit)
+        rate_limit_burst: Burst tolerance for rate limiting
     """
-    global _alert_manager
+    global _alert_manager, _rate_limiter
     if alert_callback or alert_webhook_url:
         from agentfuse.core.cost_alert import CostAlertManager
         _alert_manager = CostAlertManager(
@@ -99,6 +104,9 @@ def configure(
             callback=alert_callback,
             webhook_url=alert_webhook_url,
         )
+    if rate_limit_rps is not None:
+        from agentfuse.core.gcra_limiter import GCRARateLimiter
+        _rate_limiter = GCRARateLimiter(rate=rate_limit_rps, burst_tolerance=rate_limit_burst)
 _spend_ledger = None  # lazily initialized
 
 
@@ -162,6 +170,13 @@ def completion(
         raise ValueError("budget_usd must be > 0")
     if temperature < 0 or temperature > 2:
         raise ValueError("temperature must be between 0 and 2")
+
+    # Rate limiting (per-tenant if configured)
+    if _rate_limiter:
+        rate_key = tenant_id or budget_id or "global"
+        if not _rate_limiter.check(rate_key):
+            from agentfuse.core.rate_limiter import RateLimitExceeded
+            raise RateLimitExceeded(f"Rate limit exceeded for tenant {rate_key}")
 
     # Resolve provider
     provider, base_url = resolve_provider(model)
