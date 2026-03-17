@@ -342,6 +342,32 @@ def test_completion_records_metrics_on_cache_hit(mock_call):
     assert after_lookups > before_lookups
 
 
+def test_invalid_model_raises():
+    """Empty model must raise ValueError."""
+    with pytest.raises(ValueError, match="model must be"):
+        completion(model="", messages=[{"role": "user", "content": "hi"}])
+
+
+def test_invalid_messages_raises():
+    """Non-list messages must raise ValueError."""
+    with pytest.raises(ValueError, match="messages must be"):
+        completion(model="gpt-4o", messages="not a list")
+
+
+def test_invalid_budget_raises():
+    """Negative budget must raise ValueError."""
+    with pytest.raises(ValueError, match="budget_usd must be"):
+        completion(model="gpt-4o", messages=[{"role": "user", "content": "hi"}],
+                   budget_id="test", budget_usd=-5.0)
+
+
+def test_invalid_temperature_raises():
+    """Temperature out of range must raise ValueError."""
+    with pytest.raises(ValueError, match="temperature must be"):
+        completion(model="gpt-4o", messages=[{"role": "user", "content": "hi"}],
+                   temperature=3.0)
+
+
 def test_configure_sets_alert_manager():
     """configure() with callback must create an alert manager."""
     alerts_received = []

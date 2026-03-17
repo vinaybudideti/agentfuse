@@ -152,6 +152,16 @@ def completion(
     """
     start_time = time.monotonic()
 
+    # Input validation — fail fast on obviously bad inputs
+    if not model or not isinstance(model, str):
+        raise ValueError("model must be a non-empty string")
+    if not isinstance(messages, list):
+        raise ValueError("messages must be a list of dicts")
+    if budget_usd is not None and budget_usd <= 0:
+        raise ValueError("budget_usd must be > 0")
+    if temperature < 0 or temperature > 2:
+        raise ValueError("temperature must be between 0 and 2")
+
     # Resolve provider
     provider, base_url = resolve_provider(model)
 
