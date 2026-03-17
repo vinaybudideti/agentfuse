@@ -127,3 +127,38 @@ def test_tier2_downgrade_finds_tier3():
     result = router._find_cheaper_model("gpt-4.1")
     assert result is not None
     assert result == "gpt-4.1-mini"  # same family preferred
+
+
+def test_tier4_model_no_downgrade():
+    """Tier 4 (cheapest) model must return None for downgrade."""
+    router = CostPredictiveRouter(budget_usd=10.0)
+    result = router._find_cheaper_model("gpt-4o-mini")
+    assert result is None
+
+
+def test_zero_avg_cost_no_crash():
+    """Zero average cost must not cause division by zero."""
+    router = CostPredictiveRouter(budget_usd=10.0, preemptive_threshold=0.01)
+    router.record_cost(0.0)
+    router.record_cost(0.0)
+    router.record_cost(0.0)
+    result = router.predict_and_route("gpt-4o")
+    assert result == "gpt-4o"  # no downgrade with zero cost
+
+
+def test_prediction_remaining_calls():
+    """Prediction must show remaining calls estimate."""
+    router = CostPredictiveRouter(budget_usd=1.0)
+    for _ in range(5):
+        router.record_cost(0.1)  # $0.50 spent
+    pred = router.get_prediction()
+    assert pred["predicted_remaining_calls"] == 5  # $0.50 remaining / $0.1 avg
+
+
+def test_cost_trend_decreasing():
+    """Decreasing costs must produce negative trend."""
+    router = CostPredictiveRouter(budget_usd=100.0)
+    for i in range(10, 0, -1):
+        router.record_cost(0.01 * i)
+    trend = router._cost_trend()
+    assert trend < 0
