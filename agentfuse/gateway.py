@@ -56,6 +56,7 @@ from agentfuse.core.dedup import RequestDeduplicator
 from agentfuse.core.fallback_chain import DEFAULT_CHAINS
 from agentfuse.core.security import validate_response_safety, strip_invisible_chars
 from agentfuse.core.kill_switch import kill_switch
+from agentfuse.core.context_guard import ContextWindowGuard
 
 # Observability imports — all optional, never crash if unavailable
 try:
@@ -78,6 +79,7 @@ _tokenizer = TokenCounterAdapter()
 _optimizer = RequestOptimizer(_pricing, _tokenizer)
 _router = IntelligentModelRouter()
 _dedup = RequestDeduplicator()
+_context_guard = ContextWindowGuard()
 
 # Auto-configure from environment variables (12-factor app pattern)
 # AGENTFUSE_RATE_LIMIT_RPS — enable rate limiting (e.g., "10.0")
@@ -242,6 +244,11 @@ def completion(
     if auto_route:
         model = _router.route(model, messages)
         provider, base_url = resolve_provider(model)  # re-resolve after routing
+
+    # Step 0c: Context window guard — prevent overflow before API call
+    messages = _context_guard.ensure_fits(
+        messages, model, max_output_tokens=max_tokens or 4096
+    )
 
     # Get or create budget engine
     engine = _get_engine(budget_id, budget_usd, model) if budget_id else None
