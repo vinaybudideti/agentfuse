@@ -361,6 +361,26 @@ def test_validate_and_cache_anthropic_skips_thinking_blocks():
 
 
 @patch("agentfuse.gateway._call_openai_compatible")
+def test_completion_fallback_on_retryable_error(mock_call):
+    """Retryable error must trigger automatic fallback to next model."""
+    # First call fails, fallback succeeds
+    mock_call.side_effect = [
+        RuntimeError("Server error"),
+        SimpleNamespace(
+            choices=[SimpleNamespace(
+                message=SimpleNamespace(content="fallback response"),
+                finish_reason="stop",
+            )],
+            usage=SimpleNamespace(prompt_tokens=10, completion_tokens=5),
+        ),
+    ]
+    # gpt-4o has fallback chain [gpt-4o-mini, gpt-4.1]
+    result = completion(model="gpt-4o", messages=[{"role": "user", "content": "fallback test"}])
+    assert result.choices[0].message.content == "fallback response"
+    assert mock_call.call_count == 2  # original + fallback
+
+
+@patch("agentfuse.gateway._call_openai_compatible")
 def test_completion_records_error_metrics(mock_call):
     """Provider error must increment error metrics."""
     from agentfuse.observability.metrics import ERRORS, METRICS_AVAILABLE

@@ -52,6 +52,7 @@ from agentfuse.providers.mock_responses import MockOpenAIResponse, MockAnthropic
 from agentfuse.core.request_optimizer import RequestOptimizer
 from agentfuse.core.model_router import IntelligentModelRouter
 from agentfuse.core.dedup import RequestDeduplicator
+from agentfuse.core.fallback_chain import DEFAULT_CHAINS
 
 # Observability imports — all optional, never crash if unavailable
 try:
@@ -217,6 +218,34 @@ def completion(
                 record_error_metric(classified.error_type, provider)
             except Exception:
                 pass
+
+        # Automatic fallback: if error is retryable and we have fallback models
+        if classified.retryable and active_model in DEFAULT_CHAINS:
+            for fallback_model in DEFAULT_CHAINS[active_model]:
+                try:
+                    fb_provider, fb_base_url = resolve_provider(fallback_model)
+                    logger.info("Falling back: %s → %s", active_model, fallback_model)
+                    if fb_provider == "anthropic":
+                        result = _call_anthropic(fallback_model, messages, temperature,
+                                                  tools, max_tokens, stream, api_key, **kwargs)
+                    else:
+                        result = _call_openai_compatible(fallback_model, messages, temperature,
+                                                          tools, max_tokens, stream, api_key,
+                                                          fb_base_url, **kwargs)
+
+                    # Record cost and cache for fallback
+                    if not stream:
+                        _record_cost(result, fallback_model, fb_provider, engine)
+                        _validate_and_cache(result, fallback_model, fb_provider,
+                                             messages, temperature, tools, tenant_id)
+
+                    elapsed = time.monotonic() - start_time
+                    logger.debug("completion(%s, fallback from %s) took %.3fs",
+                                 fallback_model, active_model, elapsed)
+                    return result
+                except Exception:
+                    continue  # try next fallback
+
         raise
 
     # Step 4: Record cost
