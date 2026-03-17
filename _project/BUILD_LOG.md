@@ -261,3 +261,37 @@ Final state: 380 tests (336 unit + 44 old), 88% core coverage, 110 commits
 
 Final state: 439 unit tests, 47 exports, 88% core coverage, 128 commits
 All pushed to github.com/vinaybudideti/agentfuse
+
+## Research-Driven Production Hardening (Iteration 66+)
+**Date:** 2026-03-16
+
+### Applied from research file 2 (verified API schemas, pricing, architecture)
+- Added GPT-5 ($1.25/$10.00) and GPT-5.4 ($2.50/$15.00) to registry
+- Added GPT-4.1-mini ($0.40/$1.60) and GPT-4.1-nano ($0.10/$0.40) to registry
+- Fixed cache discount multipliers per model family:
+  - GPT-5.x: 90% discount (cached = 10% of base)
+  - GPT-4.1/o3/o4-mini: 75% discount (cached = 25%)
+  - GPT-4o: 50% discount
+  - Gemini: 90% discount (was incorrectly ~25%)
+- Handle Anthropic cache_creation sub-object with TTL breakdowns (5m vs 1h)
+- Support 1-hour cache write TTL at 2.0× pricing (vs 1.25× for 5-min)
+- Handle new finish/stop reasons: content_filter, max_tokens, pause_turn, refusal, SAFETY, RECITATION
+- Updated OpenAI Agents SDK Model.get_response() to v0.12.2 signature
+
+### Applied from research file 1 (LiteLLM/Portkey/Helicone analysis)
+- L2→L1 cache promotion: semantic hits promoted to L1 for sub-ms repeat latency
+- Circuit breaker: 429 rate limits excluded from failure count (provider healthy but busy)
+- CacheAttack defense (arXiv 2601.23088):
+  - Dual-threshold verification (0.95 write, 0.90 read)
+  - Per-tenant L2 cache isolation
+  - Near-duplicate detection prevents cache overwrite
+- GPT-5 downgrade chain: 5.4→5→4.1→4.1-mini→4.1-nano
+- GPT-5 fallback chains and routing pairs
+
+### Tests
+- 61 new tests added (gateway routing, metrics, GCRA, research validations)
+- 500 unit tests, all green
+- Gateway coverage: 56% → 69%
+- Metrics coverage: 47% → improved
+
+All pushed to github.com/vinaybudideti/agentfuse

@@ -49,8 +49,16 @@ class AgentFuseModel:
 
     async def get_response(self, system_instructions=None, input=None,
                            model_settings=None, tools=None, output_schema=None,
-                           handoffs=None, tracing=None, **kwargs):
-        """Async model response with cache check → budget check → delegate → record cost."""
+                           handoffs=None, tracing=None, *,
+                           previous_response_id=None, conversation_id=None,
+                           prompt=None, **kwargs):
+        """Async model response with cache check → budget check → delegate → record cost.
+
+        Signature matches OpenAI Agents SDK v0.12.2 Model.get_response() exactly:
+        - system_instructions, input, model_settings, tools, output_schema,
+          handoffs, tracing are positional
+        - previous_response_id, conversation_id, prompt are keyword-only
+        """
         messages = input if isinstance(input, list) else [{"role": "user", "content": str(input or "")}]
 
         # Step 1: Check cache
@@ -78,6 +86,9 @@ class AgentFuseModel:
             output_schema=output_schema,
             handoffs=handoffs,
             tracing=tracing,
+            previous_response_id=previous_response_id,
+            conversation_id=conversation_id,
+            prompt=prompt,
             **kwargs,
         )
 
