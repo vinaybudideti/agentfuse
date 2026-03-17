@@ -97,3 +97,17 @@ def test_zero_rate():
     result2 = limiter.check("t1")
     # With inf emission interval, eventually rejects
     assert not (result and result2) or True  # at least doesn't crash
+
+
+def test_check_and_wait_succeeds():
+    """check_and_wait must succeed if rate allows."""
+    limiter = GCRARateLimiter(rate=100.0, burst_tolerance=5)
+    result = limiter.check_and_wait("t1", max_wait=1.0)
+    assert result is True
+
+
+def test_get_wait_time_zero_after_burst():
+    """Wait time must be 0 when burst tokens available."""
+    limiter = GCRARateLimiter(rate=10.0, burst_tolerance=5)
+    wait = limiter.get_wait_time("new_tenant")
+    assert wait == 0.0
