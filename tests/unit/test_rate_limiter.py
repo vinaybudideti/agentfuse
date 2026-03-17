@@ -66,6 +66,37 @@ def test_rate_limiter_reset():
     assert limiter.acquire("tenant_1", block=False)
 
 
+def test_rate_limiter_reset_all():
+    """reset() without tenant must clear all tenants."""
+    limiter = TokenBucketRateLimiter(rate=10, burst=2)
+    limiter.acquire("t1", block=False)
+    limiter.acquire("t2", block=False)
+    limiter.reset()
+    assert limiter.acquire("t1", block=False)
+    assert limiter.acquire("t2", block=False)
+
+
+def test_rate_limiter_blocking_wait():
+    """Blocking acquire must wait for token refill and succeed."""
+    limiter = TokenBucketRateLimiter(rate=100, burst=1, max_wait=1.0)
+    # Exhaust the single token
+    limiter.acquire("tenant_1", block=False)
+    # Blocking wait — should succeed after ~0.01s refill at 100/sec
+    start = time.monotonic()
+    result = limiter.acquire("tenant_1", block=True)
+    elapsed = time.monotonic() - start
+    assert result is True
+    assert elapsed < 0.5  # should complete quickly at 100/sec
+
+
+def test_rate_limiter_blocking_timeout():
+    """Blocking acquire must raise after max_wait."""
+    limiter = TokenBucketRateLimiter(rate=1, burst=1, max_wait=0.1)
+    limiter.acquire("tenant_1", block=False)
+    with pytest.raises(RateLimitExceeded):
+        limiter.acquire("tenant_1", block=True)  # rate=1/sec, max_wait=0.1s
+
+
 # --- Cost Alert Tests ---
 
 def test_cost_alert_fires_at_threshold():
