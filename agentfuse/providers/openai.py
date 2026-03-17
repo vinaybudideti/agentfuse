@@ -93,8 +93,11 @@ def _get_run_context():
 
     # Fallback: use the most recently registered run
     if _run_contexts:
-        last_id = list(_run_contexts.keys())[-1]
-        return last_id, _run_contexts[last_id]
+        try:
+            last_id = next(reversed(_run_contexts))  # O(1), no list conversion
+            return last_id, _run_contexts[last_id]
+        except (StopIteration, KeyError):
+            pass
 
     return None, None
 

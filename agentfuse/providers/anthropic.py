@@ -80,8 +80,11 @@ def _get_run_context():
     if run_id and run_id in _run_contexts:
         return run_id, _run_contexts[run_id]
     if _run_contexts:
-        last_id = list(_run_contexts.keys())[-1]
-        return last_id, _run_contexts[last_id]
+        try:
+            last_id = next(reversed(_run_contexts))  # O(1), no list conversion
+            return last_id, _run_contexts[last_id]
+        except (StopIteration, KeyError):
+            pass
     return None, None
 
 

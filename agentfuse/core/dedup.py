@@ -94,9 +94,14 @@ class RequestDeduplicator:
                 evt = self._inflight.pop(request_key, None)
                 if evt:
                     evt.set()  # wake up waiting threads
-                # Clean up results after a short delay
-                # (waiting threads need to read them first)
+                # Clean up results after delay (waiting threads need to read them first)
                 threading.Timer(1.0, self._cleanup, args=(request_key,)).start()
+
+                # Prevent unbounded memory growth — evict oldest results if too many
+                if len(self._results) > self._max_inflight:
+                    oldest_key = next(iter(self._results))
+                    self._results.pop(oldest_key, None)
+                    self._errors.pop(oldest_key, None)
 
     def _cleanup(self, key: str):
         """Remove stored result/error after waiting threads have read it."""

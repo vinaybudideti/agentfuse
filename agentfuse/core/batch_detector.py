@@ -92,8 +92,8 @@ class BatchEligibilityDetector:
             self._patterns[system_hash][model] = [t for t in timestamps if t > cutoff]
             timestamps = self._patterns[system_hash][model]
 
-            # Check if batch threshold met
-            if len(timestamps) >= self._min_batch_size:
+            # Check if batch threshold met (timestamps always non-empty after append+prune)
+            if timestamps and len(timestamps) >= self._min_batch_size:
                 self._batch_opportunities += 1
                 return BatchCandidate(
                     system_prompt_hash=system_hash,

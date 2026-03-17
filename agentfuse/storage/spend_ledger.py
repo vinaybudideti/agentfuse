@@ -79,8 +79,9 @@ class SpendLedger:
             try:
                 with open(self._path, "a") as f:
                     f.write(json.dumps(entry) + "\n")
-            except OSError:
-                pass  # best-effort persistence
+            except OSError as e:
+                import logging
+                logging.getLogger(__name__).warning("Ledger write failed: %s", e)
 
             # Update in-memory aggregates
             self._total_usd += cost_usd

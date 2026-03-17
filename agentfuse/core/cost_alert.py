@@ -81,10 +81,10 @@ class CostAlertManager:
         Call this after every API response cost is recorded.
         Returns the alert if one was fired, None otherwise.
         """
-        if engine.budget <= 0:
+        if not engine or engine.budget <= 0:
             return None
 
-        pct = engine.spent / engine.budget
+        pct = engine.spent / engine.budget if engine.budget > 0 else 0.0
 
         with self._lock:
             for threshold in self._thresholds:

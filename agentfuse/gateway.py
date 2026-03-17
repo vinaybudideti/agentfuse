@@ -87,8 +87,9 @@ if _env_rate_limit:
         from agentfuse.core.gcra_limiter import GCRARateLimiter
         _rate_limiter = GCRARateLimiter(rate=float(_env_rate_limit))
         logger.info("Rate limiting enabled: %s RPS", _env_rate_limit)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Rate limiting init failed (AGENTFUSE_RATE_LIMIT_RPS=%s): %s",
+                       _env_rate_limit, e)
 
 # Anomaly detector for cost spike detection
 try:
@@ -370,17 +371,20 @@ def completion(
 
 
 def _get_engine(budget_id: str, budget_usd: Optional[float], model: str) -> BudgetEngine:
-    """Get or create a BudgetEngine for this budget_id."""
-    if budget_id in _engines:
-        return _engines[budget_id]
+    """Get or create a BudgetEngine for this budget_id. Thread-safe."""
+    # Fast path: check without lock first (dict reads are thread-safe in CPython)
+    engine = _engines.get(budget_id)
+    if engine is not None:
+        return engine
 
     if budget_usd is None:
         budget_usd = 10.0  # default $10 budget
 
     with _lock:
+        # Double-check under lock to prevent duplicate creation
         if budget_id not in _engines:
             _engines[budget_id] = BudgetEngine(budget_id, budget_usd, model)
-    return _engines[budget_id]
+        return _engines[budget_id]
 
 
 def _call_openai_compatible(model, messages, temperature, tools,
