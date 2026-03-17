@@ -127,6 +127,30 @@ def configure(
     if rate_limit_rps is not None:
         from agentfuse.core.gcra_limiter import GCRARateLimiter
         _rate_limiter = GCRARateLimiter(rate=rate_limit_rps, burst_tolerance=rate_limit_burst)
+
+
+def add_api_key(model: str, api_key: str, base_url: Optional[str] = None):
+    """Add an API key to the key pool for a model.
+
+    Multiple keys per model enable:
+    - Higher effective rate limits (6 keys × 90 RPM = 540 RPM)
+    - Automatic failover when one key is rate-limited
+    - Key rotation without downtime
+
+    Usage:
+        from agentfuse import add_api_key
+        add_api_key("gpt-4o", "sk-key1")
+        add_api_key("gpt-4o", "sk-key2")
+        add_api_key("gpt-4o", "sk-key3")
+    """
+    global _load_balancer
+    if _load_balancer is None:
+        from agentfuse.core.load_balancer import ModelLoadBalancer
+        _load_balancer = ModelLoadBalancer()
+    _load_balancer.add_endpoint(model, api_key=api_key, base_url=base_url)
+
+
+_load_balancer = None
 _spend_ledger = None  # lazily initialized
 
 
@@ -261,6 +285,19 @@ def completion(
         est_cost = _pricing.input_cost(model, token_count)
         messages, active_model = engine.check_and_act(est_cost, messages)
 
+    # Step 2b: Key pool selection (if configured)
+    effective_api_key = api_key
+    effective_base_url = base_url
+    if _load_balancer and not api_key:
+        try:
+            ep = _load_balancer.get_endpoint(active_model)
+            if ep:
+                effective_api_key = ep.api_key
+                if ep.base_url:
+                    effective_base_url = ep.base_url
+        except Exception:
+            pass
+
     # Step 3: Route to provider and make the call
     # Non-streaming requests are deduplicated — identical in-flight requests
     # share a single API call (saves money on duplicate requests)
@@ -268,11 +305,11 @@ def completion(
         def _make_call():
             if provider == "anthropic":
                 return _call_anthropic(active_model, messages, temperature, tools,
-                                          max_tokens, stream, api_key, **kwargs)
+                                          max_tokens, stream, effective_api_key, **kwargs)
             else:
                 return _call_openai_compatible(active_model, messages, temperature,
-                                                  tools, max_tokens, stream, api_key,
-                                                  base_url, **kwargs)
+                                                  tools, max_tokens, stream, effective_api_key,
+                                                  effective_base_url, **kwargs)
 
         if stream:
             result = _make_call()  # streaming can't be deduplicated
