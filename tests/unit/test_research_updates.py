@@ -335,6 +335,36 @@ def test_non_negated_no_prefix():
 
 # --- Extended thinking (research confirms output_tokens includes thinking) ---
 
+def test_openai_audio_tokens_extracted():
+    """OpenAI audio tokens must be extracted from usage details."""
+    usage = SimpleNamespace(
+        prompt_tokens=100,
+        completion_tokens=50,
+        prompt_tokens_details=SimpleNamespace(cached_tokens=0, audio_tokens=500),
+        completion_tokens_details=SimpleNamespace(reasoning_tokens=0, audio_tokens=200),
+    )
+    normalized = extract_usage("openai", usage)
+    assert normalized.audio_input_tokens == 500
+    assert normalized.audio_output_tokens == 200
+
+
+def test_audio_tokens_priced_separately():
+    """Audio tokens must be priced at $100/$200 per 1M (20x text)."""
+    engine = ModelPricingEngine()
+    usage = SimpleNamespace(
+        total_input_tokens=0,
+        total_output_tokens=0,
+        cached_input_tokens=0,
+        cache_write_tokens=0,
+        reasoning_tokens=0,
+        audio_input_tokens=1_000_000,
+        audio_output_tokens=1_000_000,
+        provider="openai",
+    )
+    cost = engine.total_cost_normalized("gpt-4o", usage)
+    assert cost >= 300.0  # $100 audio in + $200 audio out
+
+
 def test_anthropic_thinking_tokens_in_output():
     """Anthropic output_tokens includes thinking tokens — no separate field."""
     # The research confirms: "usage.output_tokens INCLUDES thinking tokens"

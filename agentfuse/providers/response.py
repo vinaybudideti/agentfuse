@@ -18,6 +18,8 @@ class NormalizedUsage:
     cached_input_tokens: int = 0
     cache_write_tokens: int = 0
     reasoning_tokens: int = 0
+    audio_input_tokens: int = 0    # OpenAI Realtime API audio tokens
+    audio_output_tokens: int = 0   # priced at 20x text tokens
     provider: str = "unknown"
 
     @property
@@ -72,11 +74,21 @@ def _extract_openai(usage) -> NormalizedUsage:
     if comp_details:
         reasoning = _getattr_int(comp_details, "reasoning_tokens")
 
+    # Audio tokens (Realtime API — priced at 20x text tokens)
+    audio_in = 0
+    audio_out = 0
+    if details:
+        audio_in = _getattr_int(details, "audio_tokens")
+    if comp_details:
+        audio_out = _getattr_int(comp_details, "audio_tokens")
+
     return NormalizedUsage(
         total_input_tokens=prompt,
         total_output_tokens=completion,
         cached_input_tokens=cached,
         reasoning_tokens=reasoning,
+        audio_input_tokens=audio_in,
+        audio_output_tokens=audio_out,
         provider="openai",
     )
 

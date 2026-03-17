@@ -91,6 +91,13 @@ class ModelPricingEngine:
         cached_write = getattr(usage, "cache_write_tokens", 0)
         provider = getattr(usage, "provider", "unknown")
 
+        # Audio tokens (OpenAI Realtime API — $100/1M in, $200/1M out)
+        audio_in = getattr(usage, "audio_input_tokens", 0)
+        audio_out = getattr(usage, "audio_output_tokens", 0)
+        audio_cost = 0.0
+        if audio_in > 0 or audio_out > 0:
+            audio_cost = (audio_in / 1_000_000) * 100.0 + (audio_out / 1_000_000) * 200.0
+
         if provider == "anthropic" and (cached_read > 0 or cached_write > 0):
             # Anthropic: separate billing for each component
             uncached_input = total_input - cached_read - cached_write
@@ -109,7 +116,7 @@ class ModelPricingEngine:
             return input_c + output_c
 
         # OpenAI / Gemini / others: uniform rate
-        return self.total_cost(model, total_input, total_output)
+        return self.total_cost(model, total_input, total_output) + audio_cost
 
     _tokenizer = None
 
