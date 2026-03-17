@@ -61,3 +61,32 @@ def test_no_system_prompt_still_works():
     detector.observe(msgs, "gpt-4o")
     result = detector.observe(msgs, "gpt-4o")
     assert result is not None
+
+
+def test_system_prompt_as_list_content():
+    """System prompt with list content blocks must be handled."""
+    detector = BatchEligibilityDetector(min_batch_size=2)
+    msgs = [
+        {"role": "system", "content": [{"type": "text", "text": "Be helpful"}]},
+        {"role": "user", "content": "hi"},
+    ]
+    detector.observe(msgs, "gpt-4o")
+    result = detector.observe(msgs, "gpt-4o")
+    assert result is not None
+
+
+def test_reset_clears_state():
+    """Reset must clear all tracking state."""
+    detector = BatchEligibilityDetector(min_batch_size=2)
+    msgs = [{"role": "system", "content": "Be helpful"}, {"role": "user", "content": "hi"}]
+    for _ in range(5):
+        detector.observe(msgs, "gpt-4o")
+
+    stats_before = detector.get_stats()
+    assert stats_before["total_observed"] == 5
+
+    detector.reset()
+
+    stats_after = detector.get_stats()
+    assert stats_after["total_observed"] == 0
+    assert stats_after["batch_opportunities"] == 0
