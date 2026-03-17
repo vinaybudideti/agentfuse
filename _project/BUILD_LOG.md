@@ -289,9 +289,20 @@ All pushed to github.com/vinaybudideti/agentfuse
 - GPT-5 fallback chains and routing pairs
 
 ### Tests
-- 61 new tests added (gateway routing, metrics, GCRA, research validations)
-- 500 unit tests, all green
+- 71 new tests added (gateway routing, metrics, GCRA, research validations, spend ledger, integrations)
+- 510 unit tests, all green, 90% core coverage
 - Gateway coverage: 56% → 69%
-- Metrics coverage: 47% → improved
+- Metrics coverage: 47% → 67%
+
+### Continued improvements
+- Wired Prometheus metrics into gateway (cache lookup, cost, errors, tokens)
+- Wired SpendLedger into gateway (persistent cost tracking, cache hit savings)
+- Singleton RequestOptimizer/IntelligentModelRouter (avoid per-call allocation)
+- Updated Anthropic prompt cache thresholds (Opus 4.6: 4096, Sonnet 4.6: 2048, Haiku 4.5: 4096)
+- Skip Anthropic thinking blocks when extracting text for cache
+- Added get_spend_report() to public API
+- Updated README (510 tests, 30+ models, spend report example)
+- Updated RESEARCH_QUESTIONS.md with 10 new blocks (11-20)
+- pip-audit: 0 vulnerabilities in project dependencies
 
 All pushed to github.com/vinaybudideti/agentfuse
