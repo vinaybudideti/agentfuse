@@ -342,6 +342,24 @@ def test_completion_records_metrics_on_cache_hit(mock_call):
     assert after_lookups > before_lookups
 
 
+def test_validate_and_cache_anthropic_skips_thinking_blocks():
+    """Anthropic thinking blocks must be skipped when extracting text for cache."""
+    from agentfuse.gateway import _cache, _validate_and_cache
+    msgs = [{"role": "user", "content": "thinking block test 4567"}]
+    result = SimpleNamespace(
+        content=[
+            SimpleNamespace(type="thinking", thinking="internal reasoning..."),
+            SimpleNamespace(type="text", text="The actual answer"),
+        ],
+        stop_reason="end_turn",
+    )
+    _validate_and_cache(result, "claude-sonnet-4-6", "anthropic", msgs, 0.0, None, None)
+    from agentfuse.core.cache import CacheHit
+    lookup = _cache.lookup("claude-sonnet-4-6", msgs)
+    assert isinstance(lookup, CacheHit)
+    assert lookup.response == "The actual answer"
+
+
 @patch("agentfuse.gateway._call_openai_compatible")
 def test_completion_records_error_metrics(mock_call):
     """Provider error must increment error metrics."""

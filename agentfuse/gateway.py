@@ -358,6 +358,10 @@ def _validate_and_cache(result, model, provider, messages,
         if provider == "anthropic":
             if hasattr(result, "content") and result.content:
                 for block in result.content:
+                    # Skip thinking blocks — they contain internal reasoning, not cacheable content
+                    block_type = getattr(block, "type", None)
+                    if block_type == "thinking":
+                        continue
                     if hasattr(block, "text") and block.text:
                         response_text = block.text
                         break
