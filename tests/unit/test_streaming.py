@@ -155,3 +155,27 @@ def test_estimate_tokens_minimum():
     middleware = StreamingCostMiddleware("gpt-4o", pricing, budget)
     assert middleware._estimate_tokens("a") == 1
     assert middleware._estimate_tokens("") == 0
+
+
+def test_stream_with_cache():
+    """Streaming with cache must accumulate and store full response."""
+    from agentfuse.core.cache import TwoTierCacheMiddleware, CacheHit
+
+    pricing = ModelPricingEngine()
+    budget = BudgetEngine("stream_cache", 10.0, "gpt-4o")
+    middleware = StreamingCostMiddleware("gpt-4o", pricing, budget)
+    cache = TwoTierCacheMiddleware()
+
+    chunks = [_openai_chunk("Hello"), _openai_chunk(" from"), _openai_chunk(" cache")]
+    msgs = [{"role": "user", "content": "stream cache test unique xyz789"}]
+
+    # Stream with caching
+    list(middleware.wrap_stream_with_cache(
+        iter(chunks), input_tokens=10,
+        model="gpt-4o", messages=msgs, cache=cache,
+    ))
+
+    # Verify cached
+    result = cache.lookup("gpt-4o", msgs)
+    assert isinstance(result, CacheHit)
+    assert result.response == "Hello from cache"

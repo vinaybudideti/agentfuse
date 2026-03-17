@@ -106,3 +106,40 @@ class StreamingCostMiddleware:
 
     def get_final_cost(self) -> float:
         return self.stream_cost
+
+    def wrap_stream_with_cache(self, stream_generator, input_tokens: int,
+                                model: str, messages: list[dict],
+                                cache=None, temperature: float = 0.0,
+                                tools=None, tenant_id=None):
+        """
+        Wraps streaming and caches the accumulated response after completion.
+
+        Accumulates all content chunks, then stores the full response in cache.
+        On future cache hits, the full response is returned directly (non-streaming).
+
+        Yields (chunk, current_cost) tuples like wrap_stream().
+        """
+        accumulated_content = []
+
+        for chunk, cost in self.wrap_stream(stream_generator, input_tokens):
+            # Extract content from chunk for accumulation
+            content = self._extract_content(chunk)
+            if content:
+                accumulated_content.append(content)
+            yield chunk, cost
+
+        # After stream completes, cache the accumulated response
+        if cache and accumulated_content:
+            full_response = "".join(accumulated_content)
+            if full_response.strip():
+                try:
+                    from agentfuse.core.response_validator import validate_for_cache
+                    if validate_for_cache(full_response):
+                        cache.store(
+                            model=model, messages=messages,
+                            response=full_response,
+                            temperature=temperature,
+                            tools=tools, tenant_id=tenant_id,
+                        )
+                except Exception:
+                    pass
