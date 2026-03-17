@@ -70,7 +70,8 @@ KNOWN_TOOL_COSTS = {
     "web_search": 0.01,          # $10 per 1,000 searches
     "web_fetch": 0.005,          # estimated
     "text_editor": 0.0,          # no extra cost (token-based)
-    "code_execution": 0.0,       # free with web search/fetch
+    "code_execution": 0.0,       # free for 50 hrs/day/org, then $0.05/hr
+    "claude_code_execution": 0.0,  # same as above (Anthropic sandbox)
     # Common external tools
     "google_search": 0.005,      # $5 per 1,000 searches (SerpAPI)
     "bing_search": 0.005,        # similar
