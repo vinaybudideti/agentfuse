@@ -156,6 +156,21 @@ def completion(
                 record_cache_lookup(model, hit=True, tier=cache_result.tier)
             except Exception:
                 pass
+
+        # Record cache hit to ledger (zero cost, cached=True)
+        ledger = _get_ledger()
+        if ledger:
+            try:
+                ledger.record(
+                    run_id=budget_id or "untracked",
+                    model=model,
+                    cost_usd=0.0,
+                    provider=provider,
+                    cached=True,
+                )
+            except Exception:
+                pass
+
         if provider == "anthropic":
             return MockAnthropicResponse(cache_result.response, model)
         return MockOpenAIResponse(cache_result.response, model)
