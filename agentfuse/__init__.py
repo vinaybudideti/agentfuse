@@ -30,6 +30,7 @@ from agentfuse.core.gcra_limiter import GCRARateLimiter
 from agentfuse.core.batch_detector import BatchEligibilityDetector
 from agentfuse.core.predictive_router import CostPredictiveRouter
 from agentfuse.core.prompt_compressor import PromptCompressor
+from agentfuse.core.tool_cost_tracker import ToolCostTracker, ToolCostExceeded
 from agentfuse.core.security import (
     mask_api_key, validate_api_key_format, check_prompt_injection,
     validate_response_safety, SecurityEvent,
@@ -101,6 +102,8 @@ __all__ = [
     "BatchEligibilityDetector",
     "CostPredictiveRouter",
     "PromptCompressor",
+    "ToolCostTracker",
+    "ToolCostExceeded",
     # Gateway (unified entry point)
     "completion",
     "get_spend_report",
