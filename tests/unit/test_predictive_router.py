@@ -162,3 +162,25 @@ def test_cost_trend_decreasing():
         router.record_cost(0.01 * i)
     trend = router._cost_trend()
     assert trend < 0
+
+
+def test_weighted_avg_empty():
+    """Empty cost history must return 0."""
+    router = CostPredictiveRouter(budget_usd=10.0)
+    assert router._weighted_avg_cost() == 0.0
+
+
+def test_cost_trend_few_data_points():
+    """Trend with <4 data points must return 0."""
+    router = CostPredictiveRouter(budget_usd=10.0)
+    router.record_cost(0.1)
+    router.record_cost(0.2)
+    assert router._cost_trend() == 0.0
+
+
+def test_find_cheaper_anthropic_opus():
+    """Claude Opus must downgrade within Anthropic family."""
+    router = CostPredictiveRouter(budget_usd=10.0)
+    result = router._find_cheaper_model("claude-opus-4-6")
+    assert result is not None
+    assert "claude" in result
