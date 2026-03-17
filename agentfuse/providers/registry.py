@@ -17,23 +17,34 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
-# March 2026 pricing — from Gap Analysis doc
+# March 2026 pricing — verified from research (per 1M tokens, USD)
+# Cache discount multipliers:
+#   OpenAI GPT-5.x: 90% discount (cached = 10% of base)
+#   OpenAI GPT-4.1/o3/o4-mini: 75% discount (cached = 25% of base)
+#   OpenAI GPT-4o: 50% discount (cached = 50% of base)
+#   Anthropic: cache read = 0.1x base (90% discount); cache write = 1.25x base
+#   Google: cache read = 0.1x base (90% discount)
 BUILTIN_MODELS: dict[str, dict] = {
-    # OpenAI (legacy)
+    # OpenAI (legacy — 50% cache discount)
     "gpt-4o": {"input": 2.50, "output": 10.00, "cached_input": 1.25, "context": 128_000, "max_output": 16_000, "provider": "openai"},
     "gpt-4o-mini": {"input": 0.15, "output": 0.60, "cached_input": 0.075, "context": 128_000, "max_output": 16_000, "provider": "openai"},
-    # OpenAI current
+    # OpenAI current (75% cache discount)
     "gpt-4.1": {"input": 2.00, "output": 8.00, "cached_input": 0.50, "context": 1_000_000, "max_output": 32_000, "provider": "openai"},
+    "gpt-4.1-mini": {"input": 0.40, "output": 1.60, "cached_input": 0.10, "context": 1_000_000, "max_output": 32_000, "provider": "openai"},
+    "gpt-4.1-nano": {"input": 0.10, "output": 0.40, "cached_input": 0.025, "context": 1_000_000, "max_output": 32_000, "provider": "openai"},
     "o3": {"input": 2.00, "output": 8.00, "cached_input": 0.50, "context": 200_000, "max_output": 100_000, "provider": "openai"},
     "o4-mini": {"input": 1.10, "output": 4.40, "cached_input": 0.275, "context": 200_000, "max_output": 100_000, "provider": "openai"},
-    # Anthropic
+    # OpenAI GPT-5 family (90% cache discount)
+    "gpt-5": {"input": 1.25, "output": 10.00, "cached_input": 0.125, "context": 1_000_000, "max_output": 32_000, "provider": "openai"},
+    "gpt-5.4": {"input": 2.50, "output": 15.00, "cached_input": 1.25, "context": 1_050_000, "max_output": 32_000, "provider": "openai"},
+    # Anthropic (cache read = 0.1x, cache write = 1.25x)
     "claude-sonnet-4-6": {"input": 3.00, "output": 15.00, "cached_input": 0.30, "context": 200_000, "max_output": 64_000, "provider": "anthropic"},
     "claude-haiku-4-5-20251001": {"input": 1.00, "output": 5.00, "cached_input": 0.10, "context": 200_000, "max_output": 64_000, "provider": "anthropic"},
     "claude-opus-4-6": {"input": 5.00, "output": 25.00, "cached_input": 0.50, "context": 200_000, "max_output": 64_000, "provider": "anthropic"},
-    # Google Gemini
-    "gemini-2.0-flash": {"input": 0.10, "output": 0.40, "cached_input": 0.025, "context": 1_000_000, "max_output": 8_000, "provider": "gemini"},
-    "gemini-2.5-pro": {"input": 1.25, "output": 10.00, "cached_input": 0.3125, "context": 1_000_000, "max_output": 64_000, "provider": "gemini"},
-    # DeepSeek
+    # Google Gemini (cache read = 0.1x)
+    "gemini-2.0-flash": {"input": 0.10, "output": 0.40, "cached_input": 0.01, "context": 1_000_000, "max_output": 8_000, "provider": "gemini"},
+    "gemini-2.5-pro": {"input": 1.25, "output": 10.00, "cached_input": 0.125, "context": 1_000_000, "max_output": 64_000, "provider": "gemini"},
+    # DeepSeek (90% cache discount)
     "deepseek/deepseek-chat": {"input": 0.28, "output": 0.42, "cached_input": 0.028, "context": 128_000, "max_output": 64_000, "provider": "deepseek"},
     "deepseek/deepseek-reasoner": {"input": 0.55, "output": 2.19, "cached_input": 0.055, "context": 128_000, "max_output": 64_000, "provider": "deepseek"},
     # Mistral
@@ -50,8 +61,8 @@ BUILTIN_MODELS: dict[str, dict] = {
     "o1": {"input": 15.00, "output": 60.00, "context": 200_000, "max_output": 100_000, "provider": "openai"},
     # Legacy compat
     "gpt-4-turbo": {"input": 10.00, "output": 30.00, "context": 128_000, "max_output": 4_096, "provider": "openai"},
-    "gemini-1.5-flash": {"input": 0.075, "output": 0.30, "context": 1_000_000, "max_output": 8_000, "provider": "gemini"},
-    "gemini-1.5-pro": {"input": 1.25, "output": 5.00, "context": 1_000_000, "max_output": 64_000, "provider": "gemini"},
+    "gemini-1.5-flash": {"input": 0.075, "output": 0.30, "cached_input": 0.0075, "context": 1_000_000, "max_output": 8_000, "provider": "gemini"},
+    "gemini-1.5-pro": {"input": 1.25, "output": 5.00, "cached_input": 0.125, "context": 1_000_000, "max_output": 64_000, "provider": "gemini"},
 }
 
 PROVIDER_PREFIXES: dict[str, str] = {

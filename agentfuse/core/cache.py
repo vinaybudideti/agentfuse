@@ -58,6 +58,7 @@ class _L2Entry:
     has_tools: bool
     response: str
     stored_at: float = field(default_factory=time.time)
+    tenant_id: str = ""  # Per-tenant isolation (CacheAttack defense)
 
 
 class TwoTierCacheMiddleware:
@@ -71,6 +72,9 @@ class TwoTierCacheMiddleware:
     # Portkey uses 0.95, Redis SemanticCache defaults to 0.90.
     TIER2_HIGH_SIM_THRESHOLD = 0.90
     TIER2_ADAPT_THRESHOLD = 0.85
+    # CacheAttack defense (arXiv 2601.23088): require HIGHER similarity for writes
+    # than reads to prevent adversarial prompts from poisoning cache entries.
+    TIER2_WRITE_SIM_THRESHOLD = 0.95
     DEFAULT_TTL = 86400  # 24 hours
     TTL_JITTER_PCT = 0.10  # ±10%
 
@@ -216,6 +220,10 @@ class TwoTierCacheMiddleware:
                 # Never return tool-use cached response for non-tool query
                 if entry.has_tools != meta_filter["has_tools"]:
                     continue
+                # Per-tenant isolation (CacheAttack defense, arXiv 2601.23088)
+                # Entries with tenant_id only match same tenant; empty matches all
+                if entry.tenant_id and tenant_id and entry.tenant_id != tenant_id:
+                    continue
 
                 if score >= self.TIER2_HIGH_SIM_THRESHOLD:
                     return CacheHit(tier=2, response=entry.response, similarity=float(score))
@@ -271,15 +279,28 @@ class TwoTierCacheMiddleware:
             meta_filter = build_l2_metadata_filter(model, tools)
             vec = self._embed(semantic_text).reshape(1, -1)
 
-            entry = _L2Entry(
-                cache_key=l1_key,
-                model=model,
-                model_prefix=meta_filter["model_prefix"],
-                has_tools=meta_filter["has_tools"],
-                response=response,
-            )
-
             with self._faiss_lock:
+                # CacheAttack defense: check if a very similar entry already exists.
+                # If so, do NOT overwrite — prevents adversarial cache poisoning.
+                if self._faiss_index.ntotal > 0:
+                    k = min(1, self._faiss_index.ntotal)
+                    scores, indices = self._faiss_index.search(vec, k)
+                    if scores[0][0] >= self.TIER2_WRITE_SIM_THRESHOLD:
+                        idx = indices[0][0]
+                        if 0 <= idx < len(self._faiss_metadata):
+                            existing = self._faiss_metadata[idx]
+                            if existing.model == model:
+                                return  # Near-duplicate already cached, skip
+
+                entry = _L2Entry(
+                    cache_key=l1_key,
+                    model=model,
+                    model_prefix=meta_filter["model_prefix"],
+                    has_tools=meta_filter["has_tools"],
+                    response=response,
+                    tenant_id=tenant_id or "",
+                )
+
                 # LRU eviction if at capacity
                 if len(self._faiss_metadata) >= self._max_l2_entries:
                     self._evict_oldest_l2()
@@ -378,7 +399,8 @@ class TwoTierCacheMiddleware:
             meta = [
                 {"cache_key": e.cache_key, "model": e.model,
                  "model_prefix": e.model_prefix, "has_tools": e.has_tools,
-                 "response": e.response, "stored_at": e.stored_at}
+                 "response": e.response, "stored_at": e.stored_at,
+                 "tenant_id": e.tenant_id}
                 for e in self._faiss_metadata
             ]
             with open(path + ".meta.json", "w") as f:

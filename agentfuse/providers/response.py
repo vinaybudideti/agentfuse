@@ -87,8 +87,10 @@ def _extract_anthropic(usage) -> NormalizedUsage:
 
     Anthropic billing:
     - input_tokens: uncached input (billed at full rate)
-    - cache_creation_input_tokens: first-time cache write (billed at 1.25x input rate)
+    - cache_creation_input_tokens: first-time cache write (billed at 1.25x for 5-min TTL)
     - cache_read_input_tokens: subsequent cache reads (billed at 0.1x input rate)
+    - cache_creation.ephemeral_5m_input_tokens: 5-min TTL cache writes (1.25x)
+    - cache_creation.ephemeral_1h_input_tokens: 1-hour TTL cache writes (2.0x)
 
     For TOTAL input tokens (what was actually processed), sum all three.
     For COST calculation, each component has its own rate — handled by pricing engine.
@@ -97,6 +99,17 @@ def _extract_anthropic(usage) -> NormalizedUsage:
     output_tokens = _getattr_int(usage, "output_tokens")
     cache_read = _getattr_int(usage, "cache_read_input_tokens")
     cache_write = _getattr_int(usage, "cache_creation_input_tokens")
+
+    # Handle new cache_creation sub-object with TTL breakdowns (March 2026 API)
+    # If the cache_creation sub-object exists, it provides finer-grained TTL detail.
+    # cache_creation_input_tokens is the legacy flat field; the sub-object breaks it down.
+    cache_creation_obj = getattr(usage, "cache_creation", None)
+    if cache_creation_obj is not None and cache_creation_obj is not False:
+        ephemeral_5m = _getattr_int(cache_creation_obj, "ephemeral_5m_input_tokens")
+        ephemeral_1h = _getattr_int(cache_creation_obj, "ephemeral_1h_input_tokens")
+        # If sub-object has data but the flat field is 0, use sub-object sum
+        if (ephemeral_5m + ephemeral_1h) > 0 and cache_write == 0:
+            cache_write = ephemeral_5m + ephemeral_1h
 
     # Total input = uncached + cache_read + cache_write
     # This is correct per Anthropic docs: input_tokens only counts NEW uncached tokens.

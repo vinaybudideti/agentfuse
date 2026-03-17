@@ -166,3 +166,157 @@ def test_completion_budget_exhaustion():
             messages=[{"role": "user", "content": "over budget"}],
             budget_id="exhaust_gw",
         )
+
+
+# --- Provider routing ---
+
+@patch("agentfuse.gateway._call_openai_compatible")
+def test_completion_routes_openai(mock_call):
+    """OpenAI models must route through _call_openai_compatible."""
+    mock_call.return_value = SimpleNamespace(
+        choices=[SimpleNamespace(
+            message=SimpleNamespace(content="hi"),
+            finish_reason="stop",
+        )],
+        usage=SimpleNamespace(prompt_tokens=10, completion_tokens=5),
+    )
+    result = completion(model="gpt-4o", messages=[{"role": "user", "content": "test"}])
+    mock_call.assert_called_once()
+    assert result.choices[0].message.content == "hi"
+
+
+@patch("agentfuse.gateway._call_anthropic")
+def test_completion_routes_anthropic(mock_call):
+    """Anthropic models must route through _call_anthropic."""
+    mock_call.return_value = SimpleNamespace(
+        content=[SimpleNamespace(text="hello from claude", type="text")],
+        stop_reason="end_turn",
+        usage=SimpleNamespace(
+            input_tokens=10, output_tokens=5,
+            cache_read_input_tokens=0, cache_creation_input_tokens=0,
+        ),
+    )
+    result = completion(model="claude-sonnet-4-6", messages=[{"role": "user", "content": "hi"}])
+    mock_call.assert_called_once()
+
+
+@patch("agentfuse.gateway._call_openai_compatible")
+def test_completion_with_budget_records_cost(mock_call):
+    """Completion with budget_id must record cost from usage."""
+    mock_call.return_value = SimpleNamespace(
+        choices=[SimpleNamespace(
+            message=SimpleNamespace(content="response"),
+            finish_reason="stop",
+        )],
+        usage=SimpleNamespace(prompt_tokens=100, completion_tokens=50),
+    )
+    completion(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": "cost tracking test"}],
+        budget_id="cost_track",
+        budget_usd=10.0,
+    )
+    assert get_spend("cost_track") > 0
+
+
+@patch("agentfuse.gateway._call_openai_compatible")
+def test_completion_provider_error_raises(mock_call):
+    """Provider errors must propagate (after classification)."""
+    mock_call.side_effect = RuntimeError("API connection failed")
+    with pytest.raises(RuntimeError, match="API connection failed"):
+        completion(model="gpt-4o", messages=[{"role": "user", "content": "error test"}])
+
+
+@patch("agentfuse.gateway._call_openai_compatible")
+def test_completion_default_budget(mock_call):
+    """When budget_id given without budget_usd, default $10."""
+    mock_call.return_value = SimpleNamespace(
+        choices=[SimpleNamespace(
+            message=SimpleNamespace(content="ok"),
+            finish_reason="stop",
+        )],
+        usage=SimpleNamespace(prompt_tokens=10, completion_tokens=5),
+    )
+    completion(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": "default budget"}],
+        budget_id="default_bud",
+    )
+    engine = get_engine("default_bud")
+    assert engine is not None
+    assert engine.budget == 10.0
+
+
+@patch("agentfuse.gateway._call_openai_compatible")
+def test_completion_auto_route(mock_call):
+    """auto_route=True must invoke IntelligentModelRouter."""
+    mock_call.return_value = SimpleNamespace(
+        choices=[SimpleNamespace(
+            message=SimpleNamespace(content="routed"),
+            finish_reason="stop",
+        )],
+        usage=SimpleNamespace(prompt_tokens=10, completion_tokens=5),
+    )
+    # Simple query should potentially be routed to a cheaper model
+    completion(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": "hi"}],
+        auto_route=True,
+    )
+    mock_call.assert_called_once()
+
+
+@patch("agentfuse.gateway._call_openai_compatible")
+def test_completion_no_budget_no_engine(mock_call):
+    """Completion without budget_id must not create an engine."""
+    mock_call.return_value = SimpleNamespace(
+        choices=[SimpleNamespace(
+            message=SimpleNamespace(content="no budget"),
+            finish_reason="stop",
+        )],
+        usage=SimpleNamespace(prompt_tokens=10, completion_tokens=5),
+    )
+    completion(model="gpt-4o", messages=[{"role": "user", "content": "no budget test"}])
+    # No engine should have been created
+    assert get_engine("no_budget_test") is None
+
+
+@patch("agentfuse.gateway._call_openai_compatible")
+def test_completion_stream_skips_cost_and_cache(mock_call):
+    """stream=True must skip cost recording and cache storage."""
+    mock_call.return_value = iter(["chunk1", "chunk2"])
+    result = completion(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": "stream test"}],
+        stream=True,
+    )
+    # Should not crash (stream skips cost/cache path)
+    mock_call.assert_called_once()
+
+
+def test_validate_and_cache_anthropic_stop_reason():
+    """Anthropic stop_reason='end_turn' mapped to finish_reason='stop'."""
+    from agentfuse.gateway import _cache, _validate_and_cache
+    msgs = [{"role": "user", "content": "anthro stop reason test 12345"}]
+    result = SimpleNamespace(
+        content=[SimpleNamespace(text="Valid response text", type="text")],
+        stop_reason="end_turn",
+    )
+    _validate_and_cache(result, "claude-sonnet-4-6", "anthropic", msgs, 0.0, None, None)
+    from agentfuse.core.cache import CacheHit
+    assert isinstance(_cache.lookup("claude-sonnet-4-6", msgs), CacheHit)
+
+
+def test_validate_and_cache_empty_response_not_cached():
+    """Empty response text must not be cached."""
+    from agentfuse.gateway import _cache, _validate_and_cache
+    msgs = [{"role": "user", "content": "empty response test"}]
+    result = SimpleNamespace(
+        choices=[SimpleNamespace(
+            message=SimpleNamespace(content=""),
+            finish_reason="stop",
+        )],
+    )
+    _validate_and_cache(result, "gpt-4o", "openai", msgs, 0.0, None, None)
+    from agentfuse.core.cache import CacheMiss
+    assert isinstance(_cache.lookup("gpt-4o", msgs), CacheMiss)

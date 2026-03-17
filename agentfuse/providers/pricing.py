@@ -36,13 +36,18 @@ class ModelPricingEngine:
         cached_rate = pricing.get("cached_input", pricing.get("input", 0.0))
         return (token_count / 1_000_000) * cached_rate
 
-    def cache_write_cost(self, model: str, token_count: int) -> float:
-        """Cost for cache creation/write tokens (Anthropic charges 1.25x input rate)."""
+    def cache_write_cost(self, model: str, token_count: int, ttl: str = "5m") -> float:
+        """Cost for cache creation/write tokens.
+
+        Anthropic cache write pricing:
+        - 5-min TTL (default): 1.25× input rate
+        - 1-hour TTL: 2.0× input rate
+        """
         if token_count <= 0:
             return 0.0
         pricing = self._registry.get_pricing(model)
-        # Anthropic cache_creation is 1.25x the input rate
-        write_rate = pricing.get("input", 0.0) * 1.25
+        multiplier = 2.0 if ttl == "1h" else 1.25
+        write_rate = pricing.get("input", 0.0) * multiplier
         return (token_count / 1_000_000) * write_rate
 
     def total_cost(self, model: str, input_tokens: int, output_tokens: int) -> float:

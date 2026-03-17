@@ -78,11 +78,19 @@ def validate_response(
             should_cache=False,  # too short to cache
         )
 
-    # Check for truncation (finish_reason != "stop")
-    if finish_reason == "length":
+    # Check for truncation/incomplete responses
+    # OpenAI: "length" (token limit), "content_filter" (safety filter)
+    # Anthropic: "max_tokens", "pause_turn" (long-running), "refusal" (classifier)
+    # Gemini: MAX_TOKENS, SAFETY, RECITATION
+    NEVER_CACHE_FINISH_REASONS = {
+        "length", "content_filter",           # OpenAI
+        "max_tokens", "pause_turn", "refusal",  # Anthropic
+        "MAX_TOKENS", "SAFETY", "RECITATION",   # Gemini
+    }
+    if finish_reason in NEVER_CACHE_FINISH_REASONS:
         return ValidationResult(
-            valid=True, reason="truncated (hit token limit)",
-            should_cache=False,  # incomplete response
+            valid=True, reason=f"not cacheable (finish_reason={finish_reason})",
+            should_cache=False,
         )
 
     # Check for LLM refusal/error patterns

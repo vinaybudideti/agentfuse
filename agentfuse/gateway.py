@@ -281,7 +281,10 @@ def _validate_and_cache(result, model, provider, messages,
                     if hasattr(block, "text") and block.text:
                         response_text = block.text
                         break
-            finish_reason = "stop" if getattr(result, "stop_reason", None) == "end_turn" else getattr(result, "stop_reason", None)
+            # Map Anthropic stop_reason to finish_reason for validation
+            # Anthropic values: end_turn, tool_use, max_tokens, stop_sequence, pause_turn, refusal
+            stop_reason = getattr(result, "stop_reason", None)
+            finish_reason = "stop" if stop_reason == "end_turn" else stop_reason
         else:
             if hasattr(result, "choices") and result.choices:
                 choice = result.choices[0]

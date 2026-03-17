@@ -38,7 +38,8 @@ class TokenCounterAdapter:
             return self._count_fallback(text, model)
 
     def _count_exact(self, text: str, model: str) -> int:
-        # OpenAI GPT-4o, GPT-4.1+, o1, o3, o4 models: use o200k_base encoding
+        # OpenAI GPT-4o, GPT-4.1+, GPT-5+, o1, o3, o4 models: all use o200k_base
+        # Verified: GPT-5, GPT-5.4, GPT-4.5, GPT-4.1 (all variants) → o200k_base
         if model.startswith(("gpt-4o", "gpt-4.1", "gpt-4.5", "gpt-5", "o1", "o3", "o4")):
             enc = tiktoken.encoding_for_model("gpt-4o")  # o200k_base
             return len(enc.encode(text))

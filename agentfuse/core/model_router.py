@@ -56,11 +56,19 @@ _COMPILED_SIMPLE = [re.compile(p, re.IGNORECASE) for p in _SIMPLE_PATTERNS]
 
 # Model pairs: strong → weak
 ROUTING_PAIRS = {
+    # OpenAI legacy
     "gpt-4o": "gpt-4o-mini",
-    "gpt-4.1": "o4-mini",
+    # OpenAI current
+    "gpt-4.1": "gpt-4.1-mini",
+    "gpt-4.1-mini": "gpt-4.1-nano",
     "o3": "o4-mini",
+    # OpenAI GPT-5 family
+    "gpt-5.4": "gpt-5",
+    "gpt-5": "gpt-4.1",
+    # Anthropic
     "claude-opus-4-6": "claude-haiku-4-5-20251001",
     "claude-sonnet-4-6": "claude-haiku-4-5-20251001",
+    # Gemini
     "gemini-2.5-pro": "gemini-2.0-flash",
     "gemini-1.5-pro": "gemini-1.5-flash",
 }

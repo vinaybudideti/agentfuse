@@ -21,12 +21,20 @@ logger = logging.getLogger(__name__)
 
 # Default fallback chains per model family
 DEFAULT_CHAINS: dict[str, list[str]] = {
+    # Anthropic
     "claude-opus-4-6": ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
     "claude-sonnet-4-6": ["claude-haiku-4-5-20251001"],
+    # OpenAI legacy
     "gpt-4o": ["gpt-4o-mini", "gpt-4.1"],
-    "gpt-4.1": ["gpt-4o", "gpt-4o-mini"],
-    "o3": ["o4-mini", "gpt-4o"],
+    # OpenAI current
+    "gpt-4.1": ["gpt-4.1-mini", "gpt-4.1-nano"],
+    "gpt-4.1-mini": ["gpt-4.1-nano", "gpt-4o-mini"],
+    "o3": ["o4-mini", "gpt-4.1"],
     "o1": ["o3", "o4-mini"],
+    # OpenAI GPT-5 family
+    "gpt-5.4": ["gpt-5", "gpt-4.1"],
+    "gpt-5": ["gpt-4.1", "gpt-4.1-mini"],
+    # Gemini
     "gemini-2.5-pro": ["gemini-2.0-flash"],
     "gemini-1.5-pro": ["gemini-1.5-flash", "gemini-2.0-flash"],
 }
