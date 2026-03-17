@@ -42,6 +42,7 @@ from agentfuse.core.model_recommender import ModelRecommender
 from agentfuse.core.quality_scorer import ResponseQualityScorer, QualityScore
 from agentfuse.core.cost_forecast import CostForecast
 from agentfuse.core.batch_submitter import BatchSubmitter, BatchJob
+from agentfuse.storage.redis_vector_store import RedisVectorStore
 from agentfuse.core.context_guard import ContextWindowGuard, ContextWindowOverflow
 from agentfuse.core.security import (
     mask_api_key, validate_api_key_format, check_prompt_injection,
@@ -131,6 +132,7 @@ __all__ = [
     "CostForecast",
     "BatchSubmitter",
     "BatchJob",
+    "RedisVectorStore",
     "ContextWindowGuard",
     "ContextWindowOverflow",
     # Gateway (unified entry point)
