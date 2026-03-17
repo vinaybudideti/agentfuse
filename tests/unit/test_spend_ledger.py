@@ -109,3 +109,35 @@ def test_concurrent_writes():
     assert ledger.get_total_spend() > 0
     # 5 threads * 50 writes * 0.001 = 0.25
     assert abs(ledger.get_total_spend() - 0.25) < 0.001
+
+
+def test_corrupted_lines_ignored():
+    """Corrupted JSONL lines must be silently ignored on rebuild."""
+    _, path = _make_ledger()
+    # Write valid + corrupted + valid lines
+    with open(path, "w") as f:
+        f.write('{"run_id":"r1","model":"gpt-4o","cost_usd":0.05,"provider":"openai"}\n')
+        f.write('THIS IS NOT JSON\n')
+        f.write('{"run_id":"r2","model":"gpt-4o","cost_usd":0.10,"provider":"openai"}\n')
+
+    ledger = SpendLedger(path)
+    assert abs(ledger.get_total_spend() - 0.15) < 1e-6
+
+
+def test_cached_flag_recorded():
+    """cached flag must be stored and retrievable in entries."""
+    ledger, _ = _make_ledger()
+    ledger.record("r1", "gpt-4o", 0.0, cached=True)
+    entries = ledger.get_entries()
+    assert entries[0]["cached"] is True
+
+
+def test_entries_limit():
+    """get_entries with limit must return only last N entries."""
+    ledger, _ = _make_ledger()
+    for i in range(10):
+        ledger.record(f"run_{i}", "gpt-4o", 0.01)
+    entries = ledger.get_entries(limit=3)
+    assert len(entries) == 3
+    # Should be the last 3 entries
+    assert entries[0]["run_id"] == "run_7"

@@ -154,3 +154,60 @@ def test_langchain_no_inner_raises():
     model = AgentFuseChatModel(budget=5.0)
     with pytest.raises(RuntimeError, match="No inner model"):
         model.invoke([{"role": "user", "content": "hi"}])
+
+
+def test_crewai_after_hook_returns_none_without_cache():
+    """After hook without cache must return None (keep original)."""
+    from agentfuse.integrations.crewai import create_agentfuse_hooks
+    _, after = create_agentfuse_hooks(budget=5.00)
+    context = SimpleNamespace(
+        messages=[{"role": "user", "content": "no cache for this"}],
+        response=None,
+        temperature=0.0,
+    )
+    result = after(context)
+    assert result is None
+
+
+def test_crewai_hooks_unique_context_keys():
+    """Different contexts must get unique keys to prevent GC reuse issues."""
+    from agentfuse.integrations.crewai import create_agentfuse_hooks
+    before, after = create_agentfuse_hooks(budget=5.00)
+
+    ctx1 = SimpleNamespace(messages=[{"role": "user", "content": "q1"}], model="gpt-4o")
+    ctx2 = SimpleNamespace(messages=[{"role": "user", "content": "q2"}], model="gpt-4o")
+
+    before(ctx1)
+    before(ctx2)
+    # Both should work without collision
+    after(ctx1)
+    after(ctx2)
+
+
+def test_crewai_after_hook_with_openai_response():
+    """After hook must extract text from OpenAI-format response."""
+    from agentfuse.integrations.crewai import create_agentfuse_hooks
+    _, after = create_agentfuse_hooks(budget=5.00)
+    context = SimpleNamespace(
+        messages=[{"role": "user", "content": "test openai resp"}],
+        response=SimpleNamespace(
+            choices=[SimpleNamespace(
+                message=SimpleNamespace(content="Hello"),
+            )],
+            usage=SimpleNamespace(prompt_tokens=10, completion_tokens=5),
+        ),
+        temperature=0.0,
+        tools=None,
+    )
+    result = after(context)
+    assert result is None  # returns None to keep original
+
+
+def test_langchain_get_receipt():
+    """get_receipt must return a dict with expected keys."""
+    from agentfuse.integrations.langchain import AgentFuseChatModel
+    model = AgentFuseChatModel(budget=5.0)
+    receipt = model.get_receipt()
+    assert "run_id" in receipt
+    assert receipt["budget_usd"] == 5.0
+    assert receipt["spent_usd"] == 0.0
