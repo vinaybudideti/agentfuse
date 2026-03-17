@@ -131,3 +131,69 @@ def test_single_turn_projection():
     proj = est.project(target_turns=10)
     assert proj["current_turns"] == 1
     assert proj["projected_total_cost"] > 0
+
+
+def test_project_with_target_less_than_current():
+    """Projecting fewer turns than already recorded must return actual cost."""
+    est = ConversationCostEstimator(budget_usd=10.0)
+    for _ in range(10):
+        est.record_turn(cost=0.1)
+    proj = est.project(target_turns=5)
+    assert proj["projected_total_cost"] == 1.0  # actual sum
+
+
+def test_exponential_budget_exceeded():
+    """Exponential growth must predict budget exceeded."""
+    est = ConversationCostEstimator(budget_usd=5.0)
+    cost = 0.01
+    for _ in range(6):
+        est.record_turn(cost=cost)
+        cost *= 2.0
+    proj = est.project(target_turns=20)
+    assert proj["pattern"] == "exponential"
+    assert proj["will_exceed_budget"] is True
+
+
+def test_turns_until_budget_flat():
+    """Flat pattern must predict correct turns until budget."""
+    est = ConversationCostEstimator(budget_usd=1.0)
+    for _ in range(5):
+        est.record_turn(cost=0.1)
+    proj = est.project()
+    # $0.50 spent, $0.50 remaining at $0.10/turn = 5 turns
+    assert proj["turns_until_budget_exceeded"] == 5
+
+
+def test_linear_fit():
+    """Linear fit must produce reasonable slope."""
+    est = ConversationCostEstimator(budget_usd=100.0)
+    costs = [0.1, 0.2, 0.3, 0.4, 0.5]
+    slope, intercept = est._linear_fit(costs)
+    assert slope > 0  # costs increasing
+
+
+def test_classify_growth_insufficient_data():
+    """With fewer than 3 data points, must return 'unknown'."""
+    est = ConversationCostEstimator(budget_usd=10.0)
+    assert est._classify_growth([0.1, 0.2]) == "unknown"
+
+
+def test_thread_safety():
+    """Concurrent recording must not crash."""
+    import threading
+    est = ConversationCostEstimator(budget_usd=100.0)
+    errors = []
+
+    def worker():
+        try:
+            for _ in range(50):
+                est.record_turn(cost=0.01)
+        except Exception as e:
+            errors.append(e)
+
+    threads = [threading.Thread(target=worker) for _ in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert len(errors) == 0

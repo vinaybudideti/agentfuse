@@ -92,3 +92,45 @@ def test_quality_score_all_fields():
     assert hasattr(result, "overall")
     assert hasattr(result, "should_cache")
     assert hasattr(result, "reason")
+
+
+def test_code_response_with_formatting():
+    """Response with code blocks must score well on coherence."""
+    scorer = ResponseQualityScorer()
+    result = scorer.score(
+        "How to print in Python?",
+        "To print in Python, use the print() function:\n\n```python\nprint('Hello World')\n```\n\nThis outputs 'Hello World' to the console."
+    )
+    assert result.coherence > 0.5
+
+
+def test_repetitive_response_low_coherence():
+    """Highly repetitive response must score low."""
+    scorer = ResponseQualityScorer()
+    result = scorer.score(
+        "What is AI?",
+        "AI AI AI AI AI AI AI AI AI AI AI AI AI AI AI AI AI AI AI AI " * 10
+    )
+    assert result.coherence < 0.7
+
+
+def test_no_query_neutral_relevancy():
+    """Empty query must give neutral relevancy score."""
+    scorer = ResponseQualityScorer()
+    result = scorer.score("", "Some response text here.")
+    assert result.relevancy == 0.5
+
+
+def test_long_response_high_completeness():
+    """Long, detailed response must score high on completeness."""
+    scorer = ResponseQualityScorer()
+    result = scorer.score("Explain X", "Detailed explanation. " * 100)
+    assert result.completeness > 0.7
+
+
+def test_reason_provided_when_not_cached():
+    """When should_cache is False, reason must be non-empty."""
+    scorer = ResponseQualityScorer(cache_threshold=0.99)
+    result = scorer.score("test", "short")
+    if not result.should_cache:
+        assert len(result.reason) > 0
