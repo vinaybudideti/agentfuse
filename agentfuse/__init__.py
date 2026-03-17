@@ -36,6 +36,7 @@ from agentfuse.core.hierarchical_budget import HierarchicalBudget
 from agentfuse.core.session import AgentSession
 from agentfuse.core.kill_switch import kill_switch, AgentKilled
 from agentfuse.core.analytics import UsageAnalytics
+from agentfuse.core.guardrails import ContentGuardrails, GuardrailResult
 from agentfuse.core.context_guard import ContextWindowGuard, ContextWindowOverflow
 from agentfuse.core.security import (
     mask_api_key, validate_api_key_format, check_prompt_injection,
@@ -116,6 +117,8 @@ __all__ = [
     "kill_switch",
     "AgentKilled",
     "UsageAnalytics",
+    "ContentGuardrails",
+    "GuardrailResult",
     "ContextWindowGuard",
     "ContextWindowOverflow",
     # Gateway (unified entry point)
