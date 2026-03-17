@@ -139,3 +139,160 @@ def test_kill_switch_accessible():
     assert kill_switch is not None
     assert hasattr(kill_switch, "kill")
     assert hasattr(kill_switch, "revive")
+
+
+def test_resolve_provider_all_known():
+    """All major providers must be resolved correctly."""
+    from agentfuse.providers.router import resolve_provider
+    assert resolve_provider("gpt-5")[0] == "openai"
+    assert resolve_provider("claude-sonnet-4-6")[0] == "anthropic"
+    assert resolve_provider("gemini-2.5-pro")[0] == "gemini"
+    assert resolve_provider("deepseek/deepseek-chat")[0] == "deepseek"
+    assert resolve_provider("mistral-large-latest")[0] == "mistral"
+    assert resolve_provider("grok-4.1-fast")[0] == "xai"
+
+
+def test_pricing_gpt5_correct():
+    """GPT-5 pricing must match registry."""
+    from agentfuse.providers.pricing import ModelPricingEngine
+    engine = ModelPricingEngine()
+    cost = engine.input_cost("gpt-5", 1_000_000)
+    assert abs(cost - 1.25) < 0.01  # $1.25 per 1M input tokens
+
+
+def test_tokenizer_cjk_detection():
+    """CJK text must use different char-per-token ratio."""
+    from agentfuse.providers.tokenizer import TokenCounterAdapter
+    tc = TokenCounterAdapter()
+    # CJK chars are ~1.5 chars per token vs ~3.5 for English
+    english = tc._count_fallback("hello world this is a test", "unknown")
+    cjk = tc._count_fallback("你好世界这是一个测试", "unknown")
+    # CJK should produce MORE tokens per character
+    assert cjk / len("你好世界这是一个测试") > english / len("hello world this is a test")
+
+
+def test_budget_exhausted_has_context():
+    """BudgetExhaustedGracefully must include run context."""
+    from agentfuse.core.budget import BudgetExhaustedGracefully
+    exc = BudgetExhaustedGracefully(
+        partial_results=["partial"],
+        receipt=None,
+        run_id="test_run",
+        spent=4.50,
+        budget=5.00,
+    )
+    assert exc.run_id == "test_run"
+    assert exc.spent == 4.50
+    assert "test_run" in str(exc)
+
+
+def test_request_dedup_key_deterministic():
+    """Same input must produce same dedup key."""
+    from agentfuse.core.dedup import RequestDeduplicator
+    k1 = RequestDeduplicator.make_key("gpt-4o", [{"role": "user", "content": "test"}])
+    k2 = RequestDeduplicator.make_key("gpt-4o", [{"role": "user", "content": "test"}])
+    assert k1 == k2
+
+
+def test_request_dedup_key_different():
+    """Different inputs must produce different dedup keys."""
+    from agentfuse.core.dedup import RequestDeduplicator
+    k1 = RequestDeduplicator.make_key("gpt-4o", [{"role": "user", "content": "a"}])
+    k2 = RequestDeduplicator.make_key("gpt-4o", [{"role": "user", "content": "b"}])
+    assert k1 != k2
+
+
+def test_fallback_chain_known_models():
+    """All models in fallback chains must exist."""
+    from agentfuse.core.fallback_chain import DEFAULT_CHAINS
+    from agentfuse.providers.registry import BUILTIN_MODELS
+    for model, fallbacks in DEFAULT_CHAINS.items():
+        for fb in fallbacks:
+            assert fb in BUILTIN_MODELS or "/" in fb, f"Fallback {fb} not in registry"
+
+
+def test_cost_tracker_thread_safety():
+    """CostTracker must be thread-safe."""
+    import threading
+    from agentfuse.core.cost_tracker import CostTracker
+    tracker = CostTracker()
+    errors = []
+
+    def worker():
+        try:
+            for _ in range(50):
+                tracker.record_call("gpt-4o", "openai", "run_1", input_tokens=10, output_tokens=5, cost_usd=0.001)
+        except Exception as e:
+            errors.append(e)
+
+    threads = [threading.Thread(target=worker) for _ in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert len(errors) == 0
+
+
+def test_adaptive_threshold_bounds():
+    """Adaptive threshold must stay within configured bounds."""
+    from agentfuse.core.adaptive_threshold import AdaptiveSimilarityThreshold
+    at = AdaptiveSimilarityThreshold(initial=0.90, min_threshold=0.80, max_threshold=0.98)
+    # Many bad hits should tighten (raise) threshold but not above max
+    for _ in range(100):
+        at.report_bad_hit()
+    assert at.get() <= 0.98
+
+
+def test_anomaly_detector_warmup():
+    """Anomaly detector must not fire during warmup period."""
+    from agentfuse.core.anomaly import CostAnomalyDetector
+    detector = CostAnomalyDetector(min_samples=10)
+    for _ in range(5):
+        result = detector.record("gpt-4o", 0.01)
+        assert result is None  # still warming up
+
+
+def test_batch_eligibility_savings_calculation():
+    """Batch detector must calculate correct savings."""
+    from agentfuse.core.batch_detector import BatchEligibilityDetector
+    detector = BatchEligibilityDetector(min_batch_size=2)
+    msgs = [{"role": "system", "content": "Be helpful"}, {"role": "user", "content": "hi"}]
+    detector.observe(msgs, "gpt-4o", estimated_cost=0.10)
+    result = detector.observe(msgs, "gpt-4o", estimated_cost=0.10)
+    assert result is not None
+    assert result.estimated_savings_usd > 0
+
+
+def test_prompt_cache_non_claude_unchanged():
+    """Non-Claude models must get messages unchanged from prompt cache."""
+    from agentfuse.core.prompt_cache import PromptCachingMiddleware
+    pc = PromptCachingMiddleware()
+    msgs = [{"role": "system", "content": "x" * 5000}]
+    result = pc.inject(msgs, "gpt-4o")
+    assert result == msgs  # unchanged
+
+
+def test_load_balancer_empty():
+    """Load balancer with no endpoints must return None."""
+    from agentfuse.core.load_balancer import ModelLoadBalancer
+    lb = ModelLoadBalancer()
+    assert lb.get_endpoint("gpt-4o") is None
+
+
+def test_acompletion_importable():
+    """acompletion must be importable from top level."""
+    from agentfuse import acompletion
+    assert callable(acompletion)
+
+
+def test_estimate_cost_importable():
+    """estimate_cost must be importable and callable."""
+    from agentfuse import estimate_cost
+    result = estimate_cost("gpt-4o", [{"role": "user", "content": "hi"}])
+    assert result["model"] == "gpt-4o"
+
+
+def test_add_api_key_importable():
+    """add_api_key must be importable and callable."""
+    from agentfuse import add_api_key
+    assert callable(add_api_key)
