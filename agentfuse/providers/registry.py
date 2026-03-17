@@ -59,6 +59,9 @@ BUILTIN_MODELS: dict[str, dict] = {
     "together/llama-3.3-70b": {"input": 0.88, "output": 0.88, "context": 128_000, "max_output": 128_000, "provider": "together"},
     # OpenAI o1
     "o1": {"input": 15.00, "output": 60.00, "context": 200_000, "max_output": 100_000, "provider": "openai"},
+    # OpenAI gpt-oss (open-weight, Apache 2.0, self-hosted pricing varies)
+    "gpt-oss-120b": {"input": 0.15, "output": 0.60, "context": 131_072, "max_output": 32_000, "provider": "openai"},
+    "gpt-oss-20b": {"input": 0.03, "output": 0.14, "context": 131_072, "max_output": 32_000, "provider": "openai"},
     # Legacy compat
     "gpt-4-turbo": {"input": 10.00, "output": 30.00, "context": 128_000, "max_output": 4_096, "provider": "openai"},
     "gemini-1.5-flash": {"input": 0.075, "output": 0.30, "cached_input": 0.0075, "context": 1_000_000, "max_output": 8_000, "provider": "gemini"},

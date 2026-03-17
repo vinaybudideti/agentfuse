@@ -79,6 +79,12 @@ class TokenCounterAdapter:
             enc = self._get_tiktoken_encoder("cl100k_base")
             return int(len(enc.encode(text)) * 1.15)
 
+        # OpenAI gpt-oss (open-weight, Apache 2.0, released Aug 2025)
+        # Uses o200k_harmony encoding (identical to o200k_base for plain text)
+        if model.startswith("gpt-oss"):
+            enc = tiktoken.encoding_for_model("gpt-4o")  # o200k_base ≡ o200k_harmony for text
+            return len(enc.encode(text))
+
         raise ValueError(f"Unknown model for exact counting: {model}")
 
     def _count_fallback(self, text: str, model: str) -> int:

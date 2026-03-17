@@ -71,15 +71,36 @@ def extract_semantic_content(messages: list[dict], max_user_messages: int = 5) -
     Per ContextCache paper (arxiv 2506.22791): embed the last 3-5 user messages
     (not assistant messages) for multi-turn context. Single-turn uses only the
     latest user message. This yields 10.9% precision improvement over single-turn.
+
+    Negation prefix: prepends "NOT:" when user message contains negation to help
+    the embedding model distinguish "I want X" from "I don't want X" — addresses
+    the negation blindness false positive issue (InfoQ banking case study).
     """
-    user_contents = [
-        _extract_text(m.get("content", ""))
-        for m in messages
-        if m.get("role") == "user" and isinstance(m.get("content"), (str, list))
-    ]
+    user_contents = []
+    for m in messages:
+        if m.get("role") == "user" and isinstance(m.get("content"), (str, list)):
+            text = _extract_text(m.get("content", ""))
+            # Add negation signal to help embedding model differentiate
+            if _has_negation(text):
+                text = "NOT: " + text
+            user_contents.append(text)
     # Take last N user messages for multi-turn context
     recent = user_contents[-max_user_messages:]
     return " ".join(recent)
+
+
+def _has_negation(text: str) -> bool:
+    """Check if text contains negation words that change semantic meaning.
+
+    Addresses the negation blindness problem where "I want to cancel" and
+    "I don't want to cancel" produce very similar embeddings.
+    """
+    lower = text.lower()
+    negation_words = {"not", "don't", "doesn't", "didn't", "won't", "can't",
+                      "cannot", "shouldn't", "wouldn't", "never", "no",
+                      "without", "neither", "nor", "nothing", "nobody"}
+    words = set(lower.split())
+    return bool(words & negation_words)
 
 
 def build_l2_metadata_filter(model: str, tools: Optional[list] = None) -> dict:

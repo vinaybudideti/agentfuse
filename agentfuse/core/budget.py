@@ -102,8 +102,17 @@ class BudgetEngine:
             return self._check_and_act_inner(estimated_cost, messages)
 
     def _check_and_act_inner(self, estimated_cost, messages):
-        """Core logic — called under lock from both sync and async paths."""
-        pct = (self.spent + estimated_cost) / self.budget
+        """Core logic — called under lock from both sync and async paths.
+
+        Uses estimated_cost × 1.5 safety margin for threshold checks because
+        pre-call estimates only know input tokens — output tokens add 30-100%
+        more cost. This prevents the LiteLLM-style bug where estimated cost
+        passes the check but actual cost exceeds the budget.
+        """
+        # Safety margin: actual cost is typically 1.5-3x input-only estimate
+        # because output tokens are unknown pre-call
+        safe_estimate = estimated_cost * 1.5
+        pct = (self.spent + safe_estimate) / self.budget
 
         if pct >= 1.0:
             return self._terminate(messages)
