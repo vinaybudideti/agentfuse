@@ -134,3 +134,42 @@ def test_custom_validator_error_doesnt_crash():
     g.add_custom_validator(lambda text: 1/0)  # division by zero
     result = g.validate("test")
     assert result.passed is True  # error swallowed, validation passes
+
+
+def test_credit_card_detected():
+    """Credit card numbers must be detected as PII."""
+    g = ContentGuardrails()
+    g.add_rule("no_pii", patterns=["credit_card"])
+    result = g.validate("My card is 4111-1111-1111-1111")
+    assert result.passed is False
+
+
+def test_ip_address_detected():
+    """IP addresses must be detected as PII."""
+    g = ContentGuardrails()
+    g.add_rule("no_pii", patterns=["ip_address"])
+    result = g.validate("Server at 192.168.1.100")
+    assert result.passed is False
+
+
+def test_sanitize_preserves_non_pii():
+    """Sanitization must preserve non-PII text."""
+    g = ContentGuardrails()
+    text = "The answer is 42."
+    assert g.sanitize_pii(text) == text
+
+
+def test_no_rules_passes():
+    """With no rules configured, any text must pass."""
+    g = ContentGuardrails()
+    assert g.validate("Anything goes here").passed is True
+
+
+def test_multiple_custom_validators():
+    """Multiple custom validators must all be checked."""
+    g = ContentGuardrails()
+    g.add_custom_validator(lambda text: (len(text) > 2, "too short"))
+    g.add_custom_validator(lambda text: ("bad" not in text, "contains bad"))
+    result = g.validate("this is bad content")
+    assert result.passed is False
+    assert any("bad" in v for v in result.violations)
