@@ -5,7 +5,7 @@
 ![PyPI](https://img.shields.io/pypi/v/agentfuse-runtime)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
-![Tests](https://img.shields.io/badge/tests-439%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-509%20passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/core%20coverage-88%25-green)
 
 AgentFuse is a production-grade Python SDK that optimizes LLM costs through intelligent model routing, semantic caching, graduated budget enforcement, and unified observability across OpenAI, Anthropic, Google Gemini, DeepSeek, Mistral, and 12+ providers. Built with insights from LiteLLM, Portkey, and Helicone architectures, and backed by research from 8 academic papers.
@@ -27,8 +27,8 @@ AgentFuse intercepts every LLM call with a two-tier semantic cache (Redis L1 exa
 | Model routing savings | Up to 85% via intelligent complexity routing (RouteLLM-inspired) |
 | Tokens saved | 179,445 per 100 calls |
 | Integration effort | 1 line of code (`completion()` gateway) |
-| Test suite | 439 unit tests, 88% core coverage |
-| Models supported | 22+ with hot-reloadable pricing |
+| Test suite | 509 unit tests, 88% core coverage |
+| Models supported | 30+ with hot-reloadable pricing (GPT-5, Claude Opus 4.6, Gemini 2.5 Pro) |
 | Providers supported | 12 (OpenAI, Anthropic, Gemini, DeepSeek, Mistral, Groq, Together, xAI, Fireworks, OpenRouter, Ollama, vLLM) |
 | Production subsystems | 26 (cache, budget, routing, retry, dedup, alerting, anomaly detection, etc.) |
 
@@ -56,6 +56,13 @@ response = completion(model="deepseek/deepseek-chat", messages=[...])
 
 # Enable intelligent routing — sends simple queries to cheap models automatically:
 response = completion(model="gpt-4o", messages=[...], auto_route=True)
+```
+
+**Check your spend (persists across restarts):**
+```python
+from agentfuse import get_spend_report
+report = get_spend_report()
+# {'total_usd': 4.52, 'by_model': {'gpt-4o': 3.1, 'claude-sonnet-4-6': 1.42}, ...}
 ```
 
 **Legacy monkey-patch API** (still supported):
