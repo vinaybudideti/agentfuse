@@ -45,3 +45,52 @@
 - Event-driven flush on model updates
 - Pattern-matching Redis key deletion
 - Corpus version tracking for RAG systems
+
+---
+
+## Research-Backed Feature Ideas (from March 2026 research)
+
+### Redis 8 Native Vector Search (L2 Backend)
+- Replace FAISS with Redis HNSW for production L2 (single infrastructure dependency)
+- Keep FAISS as local/dev fallback
+- Redis hybrid filtering (TAG + vector in single query)
+- VectorStore protocol to abstract both backends
+
+### RouteLLM Deep Integration
+- pip install routellm and use their MF router for real ML-based routing
+- Currently using heuristic complexity score — RouteLLM is research-validated
+- Achieves 85% cost reduction at 95% GPT-4 quality
+
+### PII Detection (Microsoft Presidio)
+- Pre-cache PII detection: "john@example.com" → "<EMAIL>"
+- Prevents PII from entering shared cache
+- Reversible masking for response delivery
+- GDPR compliance: admin endpoint to purge user cache entries
+
+### Async Ingestion Pipeline
+- Move SpendLedger from sync file append to async queue
+- Redis Streams or asyncio.Queue for non-blocking cost recording
+- Optional ClickHouse sink for large-scale analytics
+
+### Batch API Integration
+- OpenAI Batch API (50% discount, 24h SLA)
+- Anthropic Message Batches (50% discount, stackable with prompt caching)
+- Automatic batch-eligible workload detection ✅ DONE (BatchEligibilityDetector)
+- Need actual batch submission implementation
+
+### Extended Thinking Cost Tracking
+- Claude thinking tokens billed separately
+- Track thinking vs output tokens in NormalizedUsage
+- Don't cache thinking blocks (internal reasoning)
+- Display thinking costs separately in reports
+
+### Key Pool Rate Limit Multiplier
+- 6 API keys × 90 RPM = 540 RPM effective capacity
+- ModelLoadBalancer already supports multiple endpoints
+- Need per-key rate tracking and automatic rotation
+
+### Cross-Encoder Cache Verification (Krites Pattern)
+- Serve cached response immediately
+- Async verify with lightweight LLM
+- Promote verified entries to "trusted" tier
+- Helps with cache poisoning defense beyond threshold
