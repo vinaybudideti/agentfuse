@@ -32,6 +32,7 @@ from agentfuse.core.predictive_router import CostPredictiveRouter
 from agentfuse.core.prompt_compressor import PromptCompressor
 from agentfuse.core.tool_cost_tracker import ToolCostTracker, ToolCostExceeded
 from agentfuse.core.conversation_estimator import ConversationCostEstimator
+from agentfuse.core.hierarchical_budget import HierarchicalBudget
 from agentfuse.core.security import (
     mask_api_key, validate_api_key_format, check_prompt_injection,
     validate_response_safety, SecurityEvent,
@@ -106,6 +107,7 @@ __all__ = [
     "ToolCostTracker",
     "ToolCostExceeded",
     "ConversationCostEstimator",
+    "HierarchicalBudget",
     # Gateway (unified entry point)
     "completion",
     "get_spend_report",
