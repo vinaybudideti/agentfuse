@@ -112,3 +112,24 @@ def test_full_flow_kill_switch():
             budget_id="killed_flow",
         )
     kill_switch.revive("killed_flow")
+
+
+@patch("agentfuse.gateway._call_openai_compatible")
+def test_full_flow_with_metadata(mock_call):
+    """Metadata must pass through the full flow without error."""
+    mock_call.return_value = SimpleNamespace(
+        choices=[SimpleNamespace(
+            message=SimpleNamespace(content="metadata response"),
+            finish_reason="stop",
+        )],
+        usage=SimpleNamespace(prompt_tokens=10, completion_tokens=5),
+    )
+
+    result = completion(
+        model="gpt-5",
+        messages=[{"role": "user", "content": "metadata flow test"}],
+        budget_id="meta_flow",
+        budget_usd=10.0,
+        metadata={"user_id": "user_123", "team": "engineering"},
+    )
+    assert result.choices[0].message.content == "metadata response"
