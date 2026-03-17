@@ -109,3 +109,35 @@ def test_child_budget_enforcement():
     child.engine.record_cost(0.01)
     with pytest.raises(BudgetExhaustedGracefully):
         child.engine.check_and_act(0.01, [{"role": "user", "content": "hi"}])
+
+
+def test_release_already_released():
+    """Releasing an already-released child must return 0."""
+    parent = HierarchicalBudget("proj", total_usd=10.0)
+    parent.allocate_child("worker", budget_usd=5.0)
+    parent.release_child("worker")
+    returned = parent.release_child("worker")
+    assert returned == 0.0
+
+
+def test_custom_model_per_child():
+    """Each child can use a different model."""
+    parent = HierarchicalBudget("proj", total_usd=10.0)
+    c1 = parent.allocate_child("researcher", budget_usd=5.0, model="gpt-5")
+    c2 = parent.allocate_child("writer", budget_usd=5.0, model="claude-sonnet-4-6")
+    assert c1.engine.model == "gpt-5"
+    assert c2.engine.model == "claude-sonnet-4-6"
+
+
+def test_release_unknown_child_raises():
+    """Releasing an unknown child must raise ValueError."""
+    parent = HierarchicalBudget("proj", total_usd=10.0)
+    with pytest.raises(ValueError, match="Unknown child"):
+        parent.release_child("nonexistent")
+
+
+def test_reallocate_unknown_raises():
+    """Reallocating to unknown child must raise ValueError."""
+    parent = HierarchicalBudget("proj", total_usd=10.0)
+    with pytest.raises(ValueError, match="Unknown child"):
+        parent.reallocate("nonexistent", additional_usd=1.0)
