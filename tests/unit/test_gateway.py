@@ -352,6 +352,40 @@ def test_configure_sets_alert_manager():
     gw._alert_manager = None
 
 
+@patch("agentfuse.gateway._call_openai_compatible")
+def test_concurrent_completion_calls(mock_call):
+    """Multiple concurrent completion calls must not crash."""
+    import threading
+
+    mock_call.return_value = SimpleNamespace(
+        choices=[SimpleNamespace(
+            message=SimpleNamespace(content="concurrent response"),
+            finish_reason="stop",
+        )],
+        usage=SimpleNamespace(prompt_tokens=10, completion_tokens=5),
+    )
+    errors = []
+
+    def worker(i):
+        try:
+            completion(
+                model="gpt-4o",
+                messages=[{"role": "user", "content": f"concurrent test {i}"}],
+                budget_id=f"concurrent_{i}",
+                budget_usd=10.0,
+            )
+        except Exception as e:
+            errors.append(e)
+
+    threads = [threading.Thread(target=worker, args=(i,)) for i in range(10)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert len(errors) == 0, f"Errors: {errors}"
+
+
 def test_get_spend_report_returns_dict():
     """get_spend_report() must return a dict with expected keys."""
     report = get_spend_report()
