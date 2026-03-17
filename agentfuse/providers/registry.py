@@ -42,6 +42,7 @@ BUILTIN_MODELS: dict[str, dict] = {
     "claude-sonnet-4-6": {"input": 3.00, "output": 15.00, "cached_input": 0.30, "context": 200_000, "max_output": 64_000, "provider": "anthropic"},
     "claude-haiku-4-5-20251001": {"input": 1.00, "output": 5.00, "cached_input": 0.10, "context": 200_000, "max_output": 64_000, "provider": "anthropic"},
     "claude-opus-4-6": {"input": 5.00, "output": 25.00, "cached_input": 0.50, "context": 200_000, "max_output": 64_000, "provider": "anthropic"},
+    "claude-sonnet-4-5": {"input": 3.00, "output": 15.00, "cached_input": 0.30, "context": 200_000, "max_output": 64_000, "provider": "anthropic"},
     # Google Gemini (cache read = 0.1x)
     "gemini-2.0-flash": {"input": 0.10, "output": 0.40, "cached_input": 0.01, "context": 1_000_000, "max_output": 8_000, "provider": "gemini"},
     "gemini-2.5-pro": {"input": 1.25, "output": 10.00, "cached_input": 0.125, "context": 1_000_000, "max_output": 64_000, "provider": "gemini"},
