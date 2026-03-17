@@ -105,6 +105,30 @@ def test_reset_clears_usage():
     assert tracker.get_report()["total_tool_calls"] == 0
 
 
+def test_known_tool_auto_pricing():
+    """Known tools must auto-detect pricing when cost_per_call is None."""
+    tracker = ToolCostTracker()
+    tracker.register_tool("web_search")  # no cost specified
+    cost = tracker.record_tool_call("web_search")
+    assert cost == 0.01  # auto-detected from KNOWN_TOOL_COSTS
+
+
+def test_unknown_tool_zero_cost():
+    """Unknown tool without explicit cost must default to zero."""
+    tracker = ToolCostTracker()
+    tracker.register_tool("custom_tool")
+    cost = tracker.record_tool_call("custom_tool")
+    assert cost == 0.0
+
+
+def test_explicit_cost_overrides_known():
+    """Explicit cost must override known tool cost."""
+    tracker = ToolCostTracker()
+    tracker.register_tool("web_search", cost_per_call=0.05)  # override
+    cost = tracker.record_tool_call("web_search")
+    assert cost == 0.05  # not the default 0.01
+
+
 def test_thread_safety():
     """Concurrent tool calls must not corrupt state."""
     import threading

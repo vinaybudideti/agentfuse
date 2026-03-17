@@ -64,6 +64,22 @@ class ToolCostExceeded(Exception):
         super().__init__(f"Tool cost exceeded for '{tool_name}': {message}")
 
 
+# Pre-configured costs for common LLM tools (March 2026 pricing)
+KNOWN_TOOL_COSTS = {
+    # Anthropic server tools
+    "web_search": 0.01,          # $10 per 1,000 searches
+    "web_fetch": 0.005,          # estimated
+    "text_editor": 0.0,          # no extra cost (token-based)
+    "code_execution": 0.0,       # free with web search/fetch
+    # Common external tools
+    "google_search": 0.005,      # $5 per 1,000 searches (SerpAPI)
+    "bing_search": 0.005,        # similar
+    "wolfram_alpha": 0.01,       # Wolfram API
+    "weather_api": 0.001,        # weather APIs
+    "database_query": 0.0,       # internal, no external cost
+}
+
+
 class ToolCostTracker:
     """
     Tracks tool/function call costs alongside LLM costs.
@@ -89,11 +105,17 @@ class ToolCostTracker:
     def register_tool(
         self,
         name: str,
-        cost_per_call: float = 0.0,
+        cost_per_call: Optional[float] = None,
         cost_per_second: float = 0.0,
         max_calls: Optional[int] = None,
     ):
-        """Register a tool with its cost configuration."""
+        """Register a tool with its cost configuration.
+
+        If cost_per_call is None, auto-detects from KNOWN_TOOL_COSTS.
+        """
+        if cost_per_call is None:
+            cost_per_call = KNOWN_TOOL_COSTS.get(name, 0.0)
+
         self._tools[name] = ToolConfig(
             name=name,
             cost_per_call=cost_per_call,
