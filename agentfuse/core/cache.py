@@ -43,10 +43,16 @@ class CacheHit:
     cost: float = 0.0
     similarity: float = 1.0
 
+    def __repr__(self) -> str:
+        return f"CacheHit(tier={self.tier}, sim={self.similarity:.3f}, len={len(self.response)})"
+
 
 @dataclass
 class CacheMiss:
     reason: str = ""
+
+    def __repr__(self) -> str:
+        return f"CacheMiss(reason={self.reason!r})"
 
 
 @dataclass
