@@ -2,7 +2,7 @@
 
 ## Current State: v0.2.1 — Production-Grade + Security Hardened + Novel Algorithms
 
-**660 unit tests | 66 exports | 91% core coverage | 184 commits | ALL GREEN | 0 CVEs**
+**808 unit tests | 75 exports | 93% core coverage | 216 commits | ALL GREEN | 0 CVEs**
 
 GitHub: https://github.com/vinaybudideti/agentfuse
 
