@@ -305,4 +305,17 @@ All pushed to github.com/vinaybudideti/agentfuse
 - Updated RESEARCH_QUESTIONS.md with 10 new blocks (11-20)
 - pip-audit: 0 vulnerabilities in project dependencies
 
+### Security & Production Features
+- Security module: API key masking, prompt injection detection, invisible char stripping,
+  response safety validation (XSS/injection prevention), secure hashing, audit logging
+- Input validation at gateway boundary (model, messages, budget, temperature)
+- Response safety check before caching (prevents XSS via cached responses)
+- GCRA rate limiting wired into gateway via configure(rate_limit_rps=...)
+- Automatic model fallback on retryable errors (tries DEFAULT_CHAINS)
+- RequestDeduplicator wired into gateway (coalesces identical in-flight calls)
+- CostAlertManager wired into gateway via configure(alert_callback=...)
+- configure() API: alert_callback, alert_webhook_url, alert_thresholds,
+  rate_limit_rps, rate_limit_burst
+
+Final state: 543 unit tests, 90% core coverage, 54 public exports
 All pushed to github.com/vinaybudideti/agentfuse
