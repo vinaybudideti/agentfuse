@@ -28,6 +28,7 @@ from agentfuse.core.middleware import MiddlewarePipeline, LLMRequest, LLMRespons
 from agentfuse.core.cache_quality import CacheQualityTracker
 from agentfuse.core.gcra_limiter import GCRARateLimiter
 from agentfuse.core.batch_detector import BatchEligibilityDetector
+from agentfuse.core.predictive_router import CostPredictiveRouter
 from agentfuse.core.security import (
     mask_api_key, validate_api_key_format, check_prompt_injection,
     validate_response_safety, SecurityEvent,
@@ -97,6 +98,7 @@ __all__ = [
     "CacheQualityTracker",
     "GCRARateLimiter",
     "BatchEligibilityDetector",
+    "CostPredictiveRouter",
     # Gateway (unified entry point)
     "completion",
     "get_spend_report",

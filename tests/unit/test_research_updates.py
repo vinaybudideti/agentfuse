@@ -241,10 +241,11 @@ def test_timeout_counts_for_circuit_breaker():
 # --- GPT-5 downgrade paths ---
 
 def test_gpt5_downgrade_chain():
-    """GPT-5.4 → GPT-5 → GPT-4.1 → GPT-4.1-mini → GPT-4.1-nano."""
+    """GPT-5.4 → GPT-5.3 → GPT-5 → GPT-4.1 → GPT-4.1-mini → GPT-4.1-nano."""
     from agentfuse.core.budget import BudgetEngine
     chain = BudgetEngine.DOWNGRADE_MAP
-    assert chain["gpt-5.4"] == "gpt-5"
+    assert chain["gpt-5.4"] == "gpt-5.3"
+    assert chain["gpt-5.3"] == "gpt-5"
     assert chain["gpt-5"] == "gpt-4.1"
     assert chain["gpt-4.1"] == "gpt-4.1-mini"
     assert chain["gpt-4.1-mini"] == "gpt-4.1-nano"

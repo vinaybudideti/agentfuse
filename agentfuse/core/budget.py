@@ -50,7 +50,8 @@ class BudgetEngine:
         "o1": "o3",
         "o3": "o4-mini",
         # OpenAI GPT-5 family
-        "gpt-5.4": "gpt-5",
+        "gpt-5.4": "gpt-5.3",
+        "gpt-5.3": "gpt-5",
         "gpt-5": "gpt-4.1",
         # Anthropic
         "claude-opus-4-6": "claude-sonnet-4-6",

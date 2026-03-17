@@ -271,12 +271,12 @@ def test_downgrade_gpt5_to_gpt41():
     assert model == "gpt-4.1"
 
 
-def test_downgrade_gpt54_to_gpt5():
-    """GPT-5.4 at 80%+ budget must downgrade to gpt-5."""
+def test_downgrade_gpt54_to_gpt53():
+    """GPT-5.4 at 80%+ budget must downgrade to gpt-5.3."""
     engine = BudgetEngine("run_54", 1.00, "gpt-5.4")
     engine.spent = 0.79
     _, model = engine.check_and_act(0.01, [{"role": "user", "content": "hi"}])
-    assert model == "gpt-5"
+    assert model == "gpt-5.3"
 
 
 def test_full_state_machine_progression():

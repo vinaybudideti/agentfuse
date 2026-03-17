@@ -84,6 +84,15 @@ class TwoTierCacheMiddleware:
     DEFAULT_TTL = 86400  # 24 hours
     TTL_JITTER_PCT = 0.10  # ±10%
 
+    # Per-category thresholds (VentureBeat/InfoQ best practice):
+    # Different query types need different similarity thresholds.
+    # Code generation needs much higher threshold than FAQ.
+    CATEGORY_THRESHOLDS = {
+        "code": 0.95,      # Code is context-sensitive, high threshold
+        "factual": 0.88,   # FAQ/factual questions can be more lenient
+        "default": 0.90,   # General queries use standard threshold
+    }
+
     def __init__(
         self,
         redis_url: Optional[str] = None,

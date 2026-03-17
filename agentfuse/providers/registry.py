@@ -36,6 +36,7 @@ BUILTIN_MODELS: dict[str, dict] = {
     "o4-mini": {"input": 1.10, "output": 4.40, "cached_input": 0.275, "context": 200_000, "max_output": 100_000, "provider": "openai"},
     # OpenAI GPT-5 family (90% cache discount)
     "gpt-5": {"input": 1.25, "output": 10.00, "cached_input": 0.125, "context": 1_000_000, "max_output": 32_000, "provider": "openai"},
+    "gpt-5.3": {"input": 1.50, "output": 10.00, "cached_input": 0.15, "context": 1_000_000, "max_output": 32_000, "provider": "openai"},
     "gpt-5.4": {"input": 2.50, "output": 15.00, "cached_input": 1.25, "context": 1_050_000, "max_output": 32_000, "provider": "openai"},
     # Anthropic (cache read = 0.1x, cache write = 1.25x)
     "claude-sonnet-4-6": {"input": 3.00, "output": 15.00, "cached_input": 0.30, "context": 200_000, "max_output": 64_000, "provider": "anthropic"},
