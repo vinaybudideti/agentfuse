@@ -120,7 +120,8 @@ Request → Cache Lookup (L1 Redis → L2 FAISS) → Budget Check → LLM Call �
 - Multimodal content block handling (Anthropic vision format)
 
 ### Model Registry
-- Hot-reloadable pricing for 22+ models at March 2026 rates (GPT-4.1, o3, o4-mini, Claude Sonnet/Haiku/Opus 4.x, Gemini 2.x, DeepSeek V3/R1, Mistral, Grok, Llama)
+- Hot-reloadable pricing for 30+ models at March 2026 rates (GPT-5, GPT-4.1, o3, o4-mini, Claude Sonnet/Haiku/Opus 4.x, Gemini 2.x, DeepSeek V3/R1, Mistral, Grok, Llama)
+- Per-model-family cache discounts: GPT-5 (90%), GPT-4.1 (75%), GPT-4o (50%), Gemini (90%)
 - 4-tier pricing lookup: user overrides, exact match, fine-tuned model (2x base price), unknown (zero + warning)
 - LiteLLM remote refresh for automatic pricing updates
 - `cached_input_cost()` for provider cache discounts (Anthropic 90% off, DeepSeek 90% off)
@@ -142,11 +143,25 @@ Request → Cache Lookup (L1 Redis → L2 FAISS) → Budget Check → LLM Call �
 - `agentfuse_retry()` decorator with tenacity exponential backoff
 - Cost-aware retry with automatic model downgrade on each retry attempt
 
+### Security
+- **API key protection:** `mask_api_key()` for safe logging, `validate_api_key_format()` per provider
+- **Prompt injection detection:** `check_prompt_injection()` flags known injection patterns
+- **Invisible character stripping:** Removes zero-width Unicode chars used in steganographic attacks
+- **Response safety validation:** Prevents caching XSS, javascript: URIs, and data: URI payloads
+- **Per-tenant cache isolation:** CacheAttack defense (arXiv 2601.23088) — no cross-tenant cache access
+- **Dual-threshold verification:** Higher similarity required for cache writes (0.95) than reads (0.90)
+- **Input validation:** Fail-fast on malformed inputs at gateway boundary
+- **0 known vulnerabilities:** Clean `pip-audit` on all dependencies
+- **No dangerous patterns:** No `eval()`, `exec()`, `subprocess`, `pickle` in codebase
+
 ### Reliability
 - Semantic loop detection with FAISS sliding window and cost-aware thresholds
 - Streaming cost middleware with real-time per-token cost tracking and abort capability
-- Anthropic prompt caching middleware — auto-injects `cache_control` markers on static system messages above 1024 tokens
+- Anthropic prompt caching middleware — auto-injects `cache_control` markers on static system messages above model-specific thresholds
 - Structured JSON cost receipts with per-step logging (model, tokens, cost, cache tier, latency)
+- Automatic model fallback on retryable errors (tries cheaper models from DEFAULT_CHAINS)
+- Request deduplication — coalesces identical in-flight requests to avoid duplicate API calls
+- GCRA rate limiting — smooth traffic shaping per tenant
 
 ### Framework Integrations
 
