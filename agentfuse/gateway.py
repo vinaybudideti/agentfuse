@@ -76,6 +76,13 @@ _tokenizer = TokenCounterAdapter()
 _optimizer = RequestOptimizer(_pricing, _tokenizer)
 _router = IntelligentModelRouter()
 _dedup = RequestDeduplicator()
+
+# Anomaly detector for cost spike detection
+try:
+    from agentfuse.core.anomaly import CostAnomalyDetector
+    _anomaly_detector = CostAnomalyDetector()
+except ImportError:
+    _anomaly_detector = None
 _alert_manager = None  # lazily initialized via configure()
 _rate_limiter = None  # lazily initialized via configure()
 
@@ -413,6 +420,13 @@ def _record_cost(result, model, provider, engine):
                         _alert_manager.check(engine)
                     except Exception:
                         pass
+
+            # Check for cost anomalies (EMA + z-score spike detection)
+            if _anomaly_detector:
+                try:
+                    _anomaly_detector.record(model, actual_cost)
+                except Exception:
+                    pass
 
             # Record to persistent ledger (out of hot path — append-only file)
             ledger = _get_ledger()
