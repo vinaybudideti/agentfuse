@@ -344,3 +344,48 @@ def test_google_unknown_error():
     UnknownGoogleError.__name__ = "UnknownGoogleError"
     result = _classify_google(UnknownGoogleError("something"), "UnknownGoogleError", "something")
     assert result.retryable is True
+
+
+def test_anthropic_timeout_retryable():
+    """Anthropic APITimeoutError must be retryable."""
+    class APITimeoutError(_MockException):
+        pass
+    APITimeoutError.__name__ = "APITimeoutError"
+    exc = APITimeoutError("Request timed out")
+    result = classify_error(exc, "anthropic")
+    assert result.retryable is True
+    assert result.error_type == "timeout"
+
+
+def test_anthropic_connection_retryable():
+    """Anthropic APIConnectionError must be retryable."""
+    class APIConnectionError(_MockException):
+        pass
+    APIConnectionError.__name__ = "APIConnectionError"
+    exc = APIConnectionError("Connection failed")
+    result = classify_error(exc, "anthropic")
+    assert result.retryable is True
+    assert result.error_type == "connection"
+
+
+def test_anthropic_unknown_retryable():
+    """Unknown Anthropic error must default to retryable."""
+    exc = _MockException("Something weird happened")
+    result = classify_error(exc, "anthropic")
+    assert result.retryable is True
+    assert result.error_type == "unknown_anthropic"
+
+
+def test_circuit_breaker_property():
+    """counts_for_circuit_breaker must work correctly."""
+    # Rate limit: NOT counted
+    err = ClassifiedError("rate_limit", retryable=True, status_code=429)
+    assert err.counts_for_circuit_breaker is False
+
+    # Server error: counted
+    err = ClassifiedError("server", retryable=True, status_code=500)
+    assert err.counts_for_circuit_breaker is True
+
+    # Timeout (no status code): counted
+    err = ClassifiedError("timeout", retryable=True)
+    assert err.counts_for_circuit_breaker is True
