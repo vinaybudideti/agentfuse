@@ -104,6 +104,7 @@ except ImportError:
     _anomaly_detector = None
 _alert_manager = None  # lazily initialized via configure()
 _rate_limiter = None  # lazily initialized via configure()
+_output_guardrails = None  # lazily initialized via configure()
 
 
 def configure(
@@ -112,6 +113,7 @@ def configure(
     alert_thresholds: Optional[list[float]] = None,
     rate_limit_rps: Optional[float] = None,
     rate_limit_burst: int = 5,
+    output_guardrails=None,
 ):
     """Configure gateway-level settings.
 
@@ -133,6 +135,8 @@ def configure(
     if rate_limit_rps is not None:
         from agentfuse.core.gcra_limiter import GCRARateLimiter
         _rate_limiter = GCRARateLimiter(rate=rate_limit_rps, burst_tolerance=rate_limit_burst)
+    if output_guardrails is not None:
+        _output_guardrails = output_guardrails
 
 
 def add_api_key(model: str, api_key: str, base_url: Optional[str] = None):
