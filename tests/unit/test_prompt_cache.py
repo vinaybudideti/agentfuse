@@ -16,7 +16,7 @@ def test_inject_skips_non_claude():
 def test_inject_adds_cache_control_to_large_static_system():
     """Large static system messages on Claude must get cache_control."""
     m = PromptCachingMiddleware()
-    long_text = "You are a helpful assistant. " * 200  # > 1024 tokens
+    long_text = "You are a helpful assistant. " * 400  # > 2048 tokens (Sonnet 4.6 min)
     msgs = [{"role": "system", "content": long_text}]
     result = m.inject(msgs, "claude-sonnet-4-6")
     # Should convert to content block with cache_control

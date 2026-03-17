@@ -15,10 +15,15 @@ import copy
 
 
 # Anthropic minimum cacheable tokens by model family
+# Updated March 2026 — newer models require more tokens for caching
 _MIN_TOKENS = {
-    "claude-sonnet": 1024,
-    "claude-haiku": 2048,
-    "claude-opus": 1024,
+    "claude-opus-4-6": 4096,     # Opus 4.6 requires 4,096
+    "claude-opus-4-5": 4096,     # Opus 4.5 requires 4,096
+    "claude-opus": 1024,          # Opus 4.1/4/3 require 1,024
+    "claude-sonnet-4-6": 2048,   # Sonnet 4.6 requires 2,048
+    "claude-sonnet": 1024,        # Sonnet 4.5/4 require 1,024
+    "claude-haiku-4-5": 4096,    # Haiku 4.5 requires 4,096
+    "claude-haiku": 2048,         # Haiku 3.5/3 require 2,048
 }
 
 
