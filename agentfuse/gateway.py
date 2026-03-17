@@ -34,6 +34,7 @@ AgentFuse adds what neither has: per-run budgets + semantic caching + anomaly de
 """
 
 import logging
+import os
 import time
 import threading
 from typing import Optional, Any
@@ -76,6 +77,18 @@ _tokenizer = TokenCounterAdapter()
 _optimizer = RequestOptimizer(_pricing, _tokenizer)
 _router = IntelligentModelRouter()
 _dedup = RequestDeduplicator()
+
+# Auto-configure from environment variables (12-factor app pattern)
+# AGENTFUSE_RATE_LIMIT_RPS — enable rate limiting (e.g., "10.0")
+# AGENTFUSE_REDIS_URL — enable Redis L1 cache (e.g., "redis://localhost:6379")
+_env_rate_limit = os.environ.get("AGENTFUSE_RATE_LIMIT_RPS")
+if _env_rate_limit:
+    try:
+        from agentfuse.core.gcra_limiter import GCRARateLimiter
+        _rate_limiter = GCRARateLimiter(rate=float(_env_rate_limit))
+        logger.info("Rate limiting enabled: %s RPS", _env_rate_limit)
+    except Exception:
+        pass
 
 # Anomaly detector for cost spike detection
 try:
