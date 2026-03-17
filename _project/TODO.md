@@ -114,3 +114,32 @@
 - [ ] Monthly pip-audit
 - [ ] Track tiktoken, sentence-transformers updates
 - [ ] Track redis-py, faiss-cpu updates
+
+---
+
+## PHASE F: From Online Research (March 17, 2026)
+
+### F1. MCP (Model Context Protocol) Integration — HIGH PRIORITY
+- [ ] 97M+ monthly downloads — industry standard
+- [ ] Expose AgentFuse as an MCP tool (budget check, cost estimate)
+- [ ] Accept MCP tool costs in ToolCostTracker
+
+### F2. OpenAI Responses API Support
+- [ ] GPT-5.3/5.4 use Responses API (not Chat Completions)
+- [ ] New `text.format` structure for structured outputs
+- [ ] GPT-5.3-Codex is Responses API only
+
+### F3. SAFE-CACHE Defense (NDSS Paper)
+- [ ] Intent-level validation layer beyond cosine similarity
+- [ ] Embedding version tracking (detect drift on model updates)
+- [ ] Cache miss rate monitoring with alerting
+
+### F4. LangGraph Integration
+- [ ] LangGraph is production leader (38M monthly PyPI downloads)
+- [ ] Cost-tracking callback/middleware for LangGraph nodes
+- [ ] Budget enforcement for graph-based workflows
+
+### F5. Pricing Registry Updates ✅ DONE
+- [x] GPT-5.4 corrected to $10/$30 (was $2.50/$15)
+- [x] Mistral Medium 3, DeepSeek V3.2, Llama 4 Maverick added
+- [x] GPT-5.1 deprecation tracked
