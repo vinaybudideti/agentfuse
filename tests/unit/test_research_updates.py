@@ -263,3 +263,18 @@ def test_gpt5_routing_pair():
     from agentfuse.core.model_router import ROUTING_PAIRS
     assert "gpt-5" in ROUTING_PAIRS
     assert "gpt-5.4" in ROUTING_PAIRS
+
+
+# --- Gemini tool_use tokens ---
+
+def test_gemini_tool_use_tokens_added_to_input():
+    """Gemini tool_use_prompt_token_count must be added to input tokens."""
+    usage = SimpleNamespace(
+        prompt_token_count=100,
+        candidates_token_count=50,
+        thoughts_token_count=0,
+        cached_content_token_count=0,
+        tool_use_prompt_token_count=30,
+    )
+    normalized = extract_usage("gemini", usage)
+    assert normalized.total_input_tokens == 130  # 100 + 30

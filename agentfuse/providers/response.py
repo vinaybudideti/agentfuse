@@ -140,6 +140,13 @@ def _extract_gemini(usage) -> NormalizedUsage:
     cached = _getattr_int(usage, "cached_content_token_count",
                           _getattr_int(usage, "cachedContentTokenCount"))
 
+    # Tool use prompt tokens (tokens from tool execution results)
+    tool_tokens = _getattr_int(usage, "tool_use_prompt_token_count",
+                               _getattr_int(usage, "toolUsePromptTokenCount"))
+    # Tool tokens are part of input but not always in prompt_token_count
+    if tool_tokens > 0:
+        input_tokens += tool_tokens
+
     return NormalizedUsage(
         total_input_tokens=input_tokens,
         total_output_tokens=output_tokens + thoughts,
