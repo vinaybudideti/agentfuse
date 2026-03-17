@@ -317,5 +317,26 @@ All pushed to github.com/vinaybudideti/agentfuse
 - configure() API: alert_callback, alert_webhook_url, alert_thresholds,
   rate_limit_rps, rate_limit_burst
 
-Final state: 543 unit tests, 90% core coverage, 54 public exports
+### Deep Scan Bug Fixes (8 production bugs)
+- BatchDetector: empty timestamp guard before index access
+- RequestDeduplicator: unbounded memory growth prevention
+- CostAlertManager: division by zero guard
+- Gateway _get_engine: proper double-check lock pattern
+- Provider wrappers: O(1) dict access via next(reversed())
+- Silent error logging for rate limiter init and SpendLedger writes
+
+### Research File 3 Applied
+- gpt-oss-120b/20b models added (Apache 2.0 open-weight)
+- Negation-aware cache keys ("NOT:" prefix prevents false positives)
+- Budget safety margin (1.5× estimated cost for threshold checks)
+- Streaming middleware uses exact usage from OpenAI final chunk
+- GPT-5.3 model added (from online research — GPT-5.1 deprecated)
+- Per-category cache thresholds (code: 0.95, factual: 0.88)
+
+### Novel Inventions
+1. **CostPredictiveRouter** — predicts cost trajectory, pre-emptively routes to cheaper models
+2. **PromptCompressor** — 3-strategy intelligent compression (smart/priority/truncate)
+3. **ToolCostTracker** — unified LLM + tool call cost tracking in one budget
+
+Final state: 610 unit tests, 91% core coverage, 60 public exports, 175 commits
 All pushed to github.com/vinaybudideti/agentfuse
