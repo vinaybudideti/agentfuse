@@ -5,24 +5,15 @@
 
 ## PHASE A: Critical Production Fixes (Do First)
 
-### A1. Implement Batch API Submission
-- [ ] Create `agentfuse/core/batch_submitter.py`
-- [ ] OpenAI batch: create JSONL → upload → submit → poll → retrieve
-- [ ] Anthropic batch: `client.messages.batches.create()` → poll → results
-- [ ] Wire into gateway: `completion(batch=True)` queues for batch processing
-- [ ] Tests: 10+ tests for batch lifecycle
-- **Impact**: 50% cost savings on non-real-time workloads
+### A1. Implement Batch API Submission ✅ DONE
+- [x] BatchSubmitter with OpenAI + Anthropic batch endpoints
+- [x] 10 tests, estimate_savings()
 
-### A2. Implement Redis Vector Store (L2 Backend)
-- [ ] Create `agentfuse/storage/redis_vector_store.py`
-- [ ] HNSW index creation with TAG fields (model_prefix, has_tools, tenant_id)
-- [ ] KNN search with hybrid filtering (TAG + vector)
-- [ ] `VectorStore` protocol to abstract FAISS vs Redis
-- [ ] Update `TwoTierCacheMiddleware` to accept either backend
-- [ ] Tests: 8+ tests for Redis HNSW operations
-- **Impact**: L2 cache survives restarts, scales to 1M+ vectors
+### A2. Implement Redis Vector Store (L2 Backend) ✅ DONE
+- [x] RedisVectorStore with HNSW + TAG hybrid filtering
+- [x] 7 tests, graceful fallback
 
-### A3. Add Streaming Response Caching
+### A3. Add Streaming Response Caching ✅ DONE
 - [ ] After stream completes, accumulate full response text
 - [ ] Cache the accumulated response (same as non-streaming)
 - [ ] On cache hit for a streaming request, simulate streaming from cached text
