@@ -25,6 +25,20 @@ class ClassifiedError:
     message: str = ""
     retry_after: Optional[float] = None  # seconds to wait before retry
 
+    @property
+    def counts_for_circuit_breaker(self) -> bool:
+        """Rate limits (429) should NOT count toward circuit breaker failures.
+
+        A 429 indicates the provider is healthy but busy — tripping the circuit
+        breaker would prevent requests even after the rate limit window passes.
+        Only server errors (5xx) and connection failures should count.
+        """
+        if self.error_type == "rate_limit":
+            return False
+        if self.status_code and 400 <= self.status_code < 500:
+            return False  # Client errors (auth, bad request) aren't provider failures
+        return True
+
     @staticmethod
     def extract_retry_after(exc: Exception) -> Optional[float]:
         """Extract Retry-After header value from exception, if present.

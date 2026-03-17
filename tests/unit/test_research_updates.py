@@ -206,3 +206,60 @@ def test_gpt41_nano_pricing():
     p = reg.get_pricing("gpt-4.1-nano")
     assert p["input"] == 0.10
     assert p["output"] == 0.40
+
+
+# --- Circuit breaker exclusion ---
+
+def test_rate_limit_excluded_from_circuit_breaker():
+    """429 rate limit errors must NOT count toward circuit breaker."""
+    from agentfuse.core.error_classifier import ClassifiedError
+    err = ClassifiedError(error_type="rate_limit", retryable=True, status_code=429)
+    assert err.counts_for_circuit_breaker is False
+
+
+def test_server_error_counts_for_circuit_breaker():
+    """500 server errors must count toward circuit breaker."""
+    from agentfuse.core.error_classifier import ClassifiedError
+    err = ClassifiedError(error_type="server", retryable=True, status_code=500)
+    assert err.counts_for_circuit_breaker is True
+
+
+def test_auth_error_excluded_from_circuit_breaker():
+    """401 auth errors (client errors) must NOT count toward circuit breaker."""
+    from agentfuse.core.error_classifier import ClassifiedError
+    err = ClassifiedError(error_type="auth", retryable=False, status_code=401)
+    assert err.counts_for_circuit_breaker is False
+
+
+def test_timeout_counts_for_circuit_breaker():
+    """Timeout errors must count toward circuit breaker."""
+    from agentfuse.core.error_classifier import ClassifiedError
+    err = ClassifiedError(error_type="timeout", retryable=True)
+    assert err.counts_for_circuit_breaker is True
+
+
+# --- GPT-5 downgrade paths ---
+
+def test_gpt5_downgrade_chain():
+    """GPT-5.4 → GPT-5 → GPT-4.1 → GPT-4.1-mini → GPT-4.1-nano."""
+    from agentfuse.core.budget import BudgetEngine
+    chain = BudgetEngine.DOWNGRADE_MAP
+    assert chain["gpt-5.4"] == "gpt-5"
+    assert chain["gpt-5"] == "gpt-4.1"
+    assert chain["gpt-4.1"] == "gpt-4.1-mini"
+    assert chain["gpt-4.1-mini"] == "gpt-4.1-nano"
+
+
+def test_gpt5_fallback_chain():
+    """GPT-5 fallback chain must be defined."""
+    from agentfuse.core.fallback_chain import DEFAULT_CHAINS
+    assert "gpt-5" in DEFAULT_CHAINS
+    assert "gpt-5.4" in DEFAULT_CHAINS
+    assert "gpt-4.1" in DEFAULT_CHAINS["gpt-5"]
+
+
+def test_gpt5_routing_pair():
+    """GPT-5 routing pair must exist for intelligent routing."""
+    from agentfuse.core.model_router import ROUTING_PAIRS
+    assert "gpt-5" in ROUTING_PAIRS
+    assert "gpt-5.4" in ROUTING_PAIRS

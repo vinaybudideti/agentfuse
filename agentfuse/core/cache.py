@@ -226,6 +226,10 @@ class TwoTierCacheMiddleware:
                     continue
 
                 if score >= self.TIER2_HIGH_SIM_THRESHOLD:
+                    # L2→L1 promotion: copy to L1 for faster future exact matches
+                    # This ensures popular semantic matches get sub-ms latency on repeat
+                    l1_key = build_l1_cache_key(model, messages, temperature, tools, tenant_id=tenant_id)
+                    self._l1_set(l1_key, entry.response, self._jittered_ttl())
                     return CacheHit(tier=2, response=entry.response, similarity=float(score))
 
             return CacheMiss(reason="no L2 match above threshold")
