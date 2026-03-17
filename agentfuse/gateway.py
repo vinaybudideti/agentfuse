@@ -57,6 +57,7 @@ from agentfuse.core.fallback_chain import DEFAULT_CHAINS
 from agentfuse.core.security import validate_response_safety, strip_invisible_chars
 from agentfuse.core.kill_switch import kill_switch
 from agentfuse.core.context_guard import ContextWindowGuard
+from agentfuse.core.deprecation import ModelDeprecationChecker
 
 # Observability imports — all optional, never crash if unavailable
 try:
@@ -80,6 +81,7 @@ _optimizer = RequestOptimizer(_pricing, _tokenizer)
 _router = IntelligentModelRouter()
 _dedup = RequestDeduplicator()
 _context_guard = ContextWindowGuard()
+_deprecation_checker = ModelDeprecationChecker()
 
 # Auto-configure from environment variables (12-factor app pattern)
 # AGENTFUSE_RATE_LIMIT_RPS — enable rate limiting (e.g., "10.0")
@@ -230,6 +232,9 @@ def completion(
         if not _rate_limiter.check(rate_key):
             from agentfuse.core.rate_limiter import RateLimitExceeded
             raise RateLimitExceeded(f"Rate limit exceeded for tenant {rate_key}")
+
+    # Check for deprecated models (warns once per model)
+    model = _deprecation_checker.check_and_suggest(model)
 
     # Resolve provider
     provider, base_url = resolve_provider(model)
