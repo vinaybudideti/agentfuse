@@ -48,7 +48,7 @@ MODEL_COST_TIERS = {
 
 TIER_DOWNGRADE = {
     1: ["gpt-5", "gpt-4.1", "claude-sonnet-4-6"],     # Tier 1 → Tier 2
-    2: ["gpt-4.1-mini", "o4-mini", "claude-haiku-4-5-20251001"],  # Tier 2 → Tier 3
+    2: ["gpt-4.1-mini", "o4-mini", "claude-haiku-4-5-20251001", "gemini-2.0-flash"],  # Tier 2 → Tier 3
     3: ["gpt-4.1-nano", "gpt-4o-mini"],                # Tier 3 → Tier 4
 }
 
