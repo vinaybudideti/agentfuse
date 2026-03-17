@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 from agentfuse.gateway import (
     completion, _get_engine, _record_cost, _validate_and_cache,
-    get_engine, get_spend, cleanup,
+    get_engine, get_spend, cleanup, configure, get_spend_report,
 )
 from agentfuse.core.budget import BudgetEngine, BudgetExhaustedGracefully
 
@@ -340,6 +340,25 @@ def test_completion_records_metrics_on_cache_hit(mock_call):
 
     after_lookups = CACHE_LOOKUPS.labels(model="gpt-4o")._value.get()
     assert after_lookups > before_lookups
+
+
+def test_configure_sets_alert_manager():
+    """configure() with callback must create an alert manager."""
+    alerts_received = []
+    configure(alert_callback=lambda alert: alerts_received.append(alert))
+    import agentfuse.gateway as gw
+    assert gw._alert_manager is not None
+    # Clean up
+    gw._alert_manager = None
+
+
+def test_get_spend_report_returns_dict():
+    """get_spend_report() must return a dict with expected keys."""
+    report = get_spend_report()
+    assert "total_usd" in report
+    assert "by_model" in report
+    assert "by_provider" in report
+    assert "by_run" in report
 
 
 def test_validate_and_cache_anthropic_skips_thinking_blocks():
