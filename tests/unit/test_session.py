@@ -78,3 +78,26 @@ def test_session_auto_route():
     """auto_route flag must be passed to completion."""
     session = AgentSession("route_test", budget_usd=5.0, auto_route=True)
     assert session.auto_route is True
+
+
+def test_session_cache_hit_tracking():
+    """Session must track cache hits."""
+    msgs = [{"role": "user", "content": "session cache tracking unique 7654"}]
+    _cache.store(model="gpt-4o", messages=msgs, response="Tracked cached")
+
+    with AgentSession("track_test", budget_usd=5.0) as session:
+        session.completion(messages=msgs)
+        assert session._cache_hits >= 1
+
+
+def test_session_multiple_calls():
+    """Multiple calls must be tracked."""
+    msgs1 = [{"role": "user", "content": "session multi 1 unique abc"}]
+    msgs2 = [{"role": "user", "content": "session multi 2 unique def"}]
+    _cache.store(model="gpt-4o", messages=msgs1, response="R1")
+    _cache.store(model="gpt-4o", messages=msgs2, response="R2")
+
+    with AgentSession("multi_test", budget_usd=5.0) as session:
+        session.completion(messages=msgs1)
+        session.completion(messages=msgs2)
+        assert session._call_count == 2
