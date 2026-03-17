@@ -125,3 +125,28 @@ def test_gateway_integration():
         completion(model="gpt-4o", messages=[{"role": "user", "content": "hi"}],
                    budget_id="blocked_run")
     global_ks.revive("blocked_run")
+
+
+def test_auto_kill_duration():
+    """Auto-kill must trigger when duration exceeds threshold."""
+    import time
+    ks = KillSwitch()
+    ks.set_auto_kill(max_duration_seconds=0.01)
+    started = time.time() - 1.0  # started 1 second ago
+    ks.check_auto_kill("run_1", cost_usd=0.0, calls=1, started_at=started)
+    with pytest.raises(AgentKilled):
+        ks.check("run_1")
+
+
+def test_callback_error_doesnt_crash():
+    """Failing on_kill callback must not crash."""
+    ks = KillSwitch()
+    ks.on_kill(lambda run_id, reason: 1/0)  # will crash
+    ks.kill("run_err", "test")  # should not raise
+
+
+def test_no_auto_kill_when_not_configured():
+    """check_auto_kill with no config must do nothing."""
+    ks = KillSwitch()
+    ks.check_auto_kill("run_1", cost_usd=1000.0, calls=999999)
+    ks.check("run_1")  # should not raise
