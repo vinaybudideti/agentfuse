@@ -37,7 +37,7 @@ BUILTIN_MODELS: dict[str, dict] = {
     # OpenAI GPT-5 family (90% cache discount)
     "gpt-5": {"input": 1.25, "output": 10.00, "cached_input": 0.125, "context": 1_000_000, "max_output": 32_000, "provider": "openai"},
     "gpt-5.3": {"input": 1.50, "output": 10.00, "cached_input": 0.15, "context": 1_000_000, "max_output": 32_000, "provider": "openai"},
-    "gpt-5.4": {"input": 2.50, "output": 15.00, "cached_input": 1.25, "context": 1_050_000, "max_output": 32_000, "provider": "openai"},
+    "gpt-5.4": {"input": 10.00, "output": 30.00, "cached_input": 1.00, "context": 1_050_000, "max_output": 32_000, "provider": "openai"},
     # Anthropic (cache read = 0.1x, cache write = 1.25x)
     "claude-sonnet-4-6": {"input": 3.00, "output": 15.00, "cached_input": 0.30, "context": 200_000, "max_output": 64_000, "provider": "anthropic"},
     "claude-haiku-4-5-20251001": {"input": 1.00, "output": 5.00, "cached_input": 0.10, "context": 200_000, "max_output": 64_000, "provider": "anthropic"},
@@ -61,6 +61,12 @@ BUILTIN_MODELS: dict[str, dict] = {
     "together/llama-3.3-70b": {"input": 0.88, "output": 0.88, "context": 128_000, "max_output": 128_000, "provider": "together"},
     # OpenAI o1
     "o1": {"input": 15.00, "output": 60.00, "context": 200_000, "max_output": 100_000, "provider": "openai"},
+    # Mistral (updated March 2026)
+    "mistral-medium-3": {"input": 0.40, "output": 2.00, "context": 128_000, "max_output": 128_000, "provider": "mistral"},
+    # DeepSeek (updated)
+    "deepseek/deepseek-v3.2": {"input": 0.28, "output": 0.42, "cached_input": 0.028, "context": 128_000, "max_output": 64_000, "provider": "deepseek"},
+    # Meta Llama 4
+    "together/llama-4-maverick": {"input": 0.27, "output": 0.85, "context": 1_000_000, "max_output": 64_000, "provider": "together"},
     # OpenAI gpt-oss (open-weight, Apache 2.0, self-hosted pricing varies)
     "gpt-oss-120b": {"input": 0.15, "output": 0.60, "context": 131_072, "max_output": 32_000, "provider": "openai"},
     "gpt-oss-20b": {"input": 0.03, "output": 0.14, "context": 131_072, "max_output": 32_000, "provider": "openai"},

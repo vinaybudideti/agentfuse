@@ -24,11 +24,11 @@ def test_gpt5_pricing_exists():
 
 
 def test_gpt54_pricing_exists():
-    """GPT-5.4 pricing must be in registry."""
+    """GPT-5.4 pricing must be in registry (updated Mar 2026: $10/$30)."""
     reg = ModelRegistry(refresh_hours=0)
     p = reg.get_pricing("gpt-5.4")
-    assert p["input"] == 2.50
-    assert p["output"] == 15.00
+    assert p["input"] == 10.00
+    assert p["output"] == 30.00
 
 
 def test_gpt5_cache_90pct_discount():

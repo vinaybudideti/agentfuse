@@ -33,6 +33,8 @@ DEPRECATED_MODELS = {
     "gpt-4.1": {"replacement": "gpt-5", "deprecated_date": "2026-02-13", "sunset_date": "2026-04-13"},
     "gpt-4.1-mini": {"replacement": "gpt-5", "deprecated_date": "2026-02-13", "sunset_date": "2026-04-13"},
     "gpt-4.1-nano": {"replacement": "gpt-5", "deprecated_date": "2026-02-13", "sunset_date": "2026-04-13"},
+    # OpenAI GPT-5.1 (deprecated Mar 11, 2026 → replaced by 5.3/5.4)
+    "gpt-5.1": {"replacement": "gpt-5.3", "deprecated_date": "2026-03-11", "sunset_date": "2026-04-11"},
     # Anthropic (deprecated Apr 19, 2026)
     "claude-3-haiku-20240307": {"replacement": "claude-haiku-4-5-20251001", "deprecated_date": "2026-03-01", "sunset_date": "2026-04-19"},
     "claude-3-sonnet-20240229": {"replacement": "claude-sonnet-4-6", "deprecated_date": "2025-10-01", "sunset_date": "2026-04-19"},
