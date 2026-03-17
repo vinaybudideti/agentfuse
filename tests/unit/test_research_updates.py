@@ -278,3 +278,71 @@ def test_gemini_tool_use_tokens_added_to_input():
     )
     normalized = extract_usage("gemini", usage)
     assert normalized.total_input_tokens == 130  # 100 + 30
+
+
+# --- gpt-oss models ---
+
+def test_gpt_oss_120b_pricing():
+    """gpt-oss-120b pricing must exist."""
+    reg = ModelRegistry(refresh_hours=0)
+    p = reg.get_pricing("gpt-oss-120b")
+    assert p["input"] == 0.15
+    assert p["output"] == 0.60
+
+
+def test_gpt_oss_20b_pricing():
+    """gpt-oss-20b pricing must exist."""
+    reg = ModelRegistry(refresh_hours=0)
+    p = reg.get_pricing("gpt-oss-20b")
+    assert p["input"] == 0.03
+    assert p["output"] == 0.14
+
+
+def test_gpt_oss_tokenizer():
+    """gpt-oss models must use o200k_base encoding."""
+    tc = TokenCounterAdapter()
+    tokens = tc.count_tokens("Hello world", "gpt-oss-120b")
+    assert tokens > 0
+
+
+# --- Negation detection ---
+
+def test_negation_detection_basic():
+    """Negation words must be detected."""
+    from agentfuse.core.keys import _has_negation
+    assert _has_negation("I don't want this") is True
+    assert _has_negation("I want this") is False
+    assert _has_negation("never do that") is True
+    assert _has_negation("always do that") is False
+
+
+def test_negation_affects_semantic_content():
+    """Negated messages must get 'NOT:' prefix in semantic content."""
+    from agentfuse.core.keys import extract_semantic_content
+    msgs = [{"role": "user", "content": "I don't want to cancel my account"}]
+    content = extract_semantic_content(msgs)
+    assert content.startswith("NOT:")
+
+
+def test_non_negated_no_prefix():
+    """Non-negated messages must not get 'NOT:' prefix."""
+    from agentfuse.core.keys import extract_semantic_content
+    msgs = [{"role": "user", "content": "I want to update my account"}]
+    content = extract_semantic_content(msgs)
+    assert not content.startswith("NOT:")
+
+
+# --- Extended thinking (research confirms output_tokens includes thinking) ---
+
+def test_anthropic_thinking_tokens_in_output():
+    """Anthropic output_tokens includes thinking tokens — no separate field."""
+    # The research confirms: "usage.output_tokens INCLUDES thinking tokens"
+    # So our extract_usage already handles this correctly (we bill output_tokens as-is)
+    usage = SimpleNamespace(
+        input_tokens=100,
+        output_tokens=503,  # includes thinking tokens
+        cache_read_input_tokens=0,
+        cache_creation_input_tokens=0,
+    )
+    normalized = extract_usage("anthropic", usage)
+    assert normalized.total_output_tokens == 503  # thinking included
