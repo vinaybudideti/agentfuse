@@ -51,6 +51,7 @@ from agentfuse.providers.token_pattern import extract_with_pattern
 from agentfuse.providers.mock_responses import MockOpenAIResponse, MockAnthropicResponse
 from agentfuse.core.request_optimizer import RequestOptimizer
 from agentfuse.core.model_router import IntelligentModelRouter
+from agentfuse.core.dedup import RequestDeduplicator
 
 # Observability imports — all optional, never crash if unavailable
 try:
@@ -72,6 +73,7 @@ _pricing = ModelPricingEngine()
 _tokenizer = TokenCounterAdapter()
 _optimizer = RequestOptimizer(_pricing, _tokenizer)
 _router = IntelligentModelRouter()
+_dedup = RequestDeduplicator()
 _spend_ledger = None  # lazily initialized
 
 
@@ -190,14 +192,23 @@ def completion(
         messages, active_model = engine.check_and_act(est_cost, messages)
 
     # Step 3: Route to provider and make the call
+    # Non-streaming requests are deduplicated — identical in-flight requests
+    # share a single API call (saves money on duplicate requests)
     try:
-        if provider == "anthropic":
-            result = _call_anthropic(active_model, messages, temperature, tools,
-                                      max_tokens, stream, api_key, **kwargs)
+        def _make_call():
+            if provider == "anthropic":
+                return _call_anthropic(active_model, messages, temperature, tools,
+                                          max_tokens, stream, api_key, **kwargs)
+            else:
+                return _call_openai_compatible(active_model, messages, temperature,
+                                                  tools, max_tokens, stream, api_key,
+                                                  base_url, **kwargs)
+
+        if stream:
+            result = _make_call()  # streaming can't be deduplicated
         else:
-            result = _call_openai_compatible(active_model, messages, temperature,
-                                              tools, max_tokens, stream, api_key,
-                                              base_url, **kwargs)
+            dedup_key = _dedup.make_key(active_model, messages, temperature)
+            result = _dedup.execute(dedup_key, _make_call)
     except Exception as exc:
         classified = classify_error(exc, provider)
         logger.warning("LLM call failed: %s (%s)", classified.error_type, provider)
