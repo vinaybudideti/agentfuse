@@ -34,7 +34,7 @@ from agentfuse.core.security import (
 )
 from agentfuse.providers.openai import wrap_openai
 from agentfuse.providers.anthropic import wrap_anthropic
-from agentfuse.gateway import completion, get_spend_report, configure
+from agentfuse.gateway import completion, get_spend_report, configure, estimate_cost
 
 __version__ = "0.2.0"
 __version_info__ = (0, 2, 0)
@@ -101,6 +101,7 @@ __all__ = [
     "completion",
     "get_spend_report",
     "configure",
+    "estimate_cost",
     # Security
     "mask_api_key",
     "validate_api_key_format",

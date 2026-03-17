@@ -111,6 +111,24 @@ class IntelligentModelRouter:
         if score < self._threshold:
             # Simple query → use cheap model
             cheap_model = self._pairs[model]
+
+            # Context window check: ensure messages fit in the cheaper model
+            try:
+                from agentfuse.providers.registry import ModelRegistry
+                registry = ModelRegistry(refresh_hours=0)
+                cheap_pricing = registry.get_pricing(cheap_model)
+                max_context = cheap_pricing.get("context", 0)
+                if max_context > 0:
+                    total_chars = sum(len(str(m.get("content", ""))) for m in messages)
+                    estimated_tokens = total_chars // 4  # rough estimate
+                    if estimated_tokens > max_context * 0.8:
+                        # Messages too long for cheap model — keep original
+                        logger.debug("Query too long for %s (%d est. tokens) — keeping %s",
+                                     cheap_model, estimated_tokens, model)
+                        return model
+            except Exception:
+                pass  # if registry fails, still route
+
             self._downrouted += 1
             logger.debug("Query routed: %s → %s (complexity=%.2f)", model, cheap_model, score)
             return cheap_model

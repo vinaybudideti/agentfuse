@@ -529,6 +529,30 @@ def cleanup(budget_id: Optional[str] = None):
             _engines.clear()
 
 
+def estimate_cost(
+    model: str,
+    messages: list[dict],
+    max_output_tokens: int = 1000,
+) -> dict:
+    """Estimate the cost of a completion call BEFORE making it.
+
+    Returns dict with estimated input cost, output cost, and total.
+    Useful for budget planning and cost preview in UIs.
+    """
+    input_tokens = _tokenizer.count_messages(messages, model)
+    input_cost = _pricing.input_cost(model, input_tokens)
+    output_cost = _pricing.output_cost(model, max_output_tokens)
+
+    return {
+        "model": model,
+        "estimated_input_tokens": input_tokens,
+        "estimated_output_tokens": max_output_tokens,
+        "estimated_input_cost_usd": round(input_cost, 8),
+        "estimated_output_cost_usd": round(output_cost, 8),
+        "estimated_total_cost_usd": round(input_cost + output_cost, 8),
+    }
+
+
 def get_spend_report() -> dict:
     """Get a spend report from the persistent ledger.
 

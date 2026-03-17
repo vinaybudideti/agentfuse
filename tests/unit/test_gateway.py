@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from agentfuse.gateway import (
     completion, _get_engine, _record_cost, _validate_and_cache,
     get_engine, get_spend, cleanup, configure, get_spend_report,
+    estimate_cost,
 )
 from agentfuse.core.budget import BudgetEngine, BudgetExhaustedGracefully
 
@@ -366,6 +367,29 @@ def test_invalid_temperature_raises():
     with pytest.raises(ValueError, match="temperature must be"):
         completion(model="gpt-4o", messages=[{"role": "user", "content": "hi"}],
                    temperature=3.0)
+
+
+def test_estimate_cost_returns_correct_keys():
+    """estimate_cost must return a dict with expected keys and positive values."""
+    result = estimate_cost(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": "What is Python?"}],
+        max_output_tokens=500,
+    )
+    assert result["model"] == "gpt-4o"
+    assert result["estimated_input_tokens"] > 0
+    assert result["estimated_output_tokens"] == 500
+    assert result["estimated_total_cost_usd"] > 0
+    assert result["estimated_total_cost_usd"] == (
+        result["estimated_input_cost_usd"] + result["estimated_output_cost_usd"]
+    )
+
+
+def test_estimate_cost_different_models():
+    """More expensive models must have higher estimated cost."""
+    cheap = estimate_cost("gpt-4o-mini", [{"role": "user", "content": "hi"}])
+    expensive = estimate_cost("gpt-4o", [{"role": "user", "content": "hi"}])
+    assert expensive["estimated_total_cost_usd"] > cheap["estimated_total_cost_usd"]
 
 
 def test_configure_sets_alert_manager():
