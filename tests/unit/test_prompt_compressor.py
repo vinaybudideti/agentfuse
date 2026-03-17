@@ -118,3 +118,28 @@ def test_system_always_kept():
         msgs = _make_messages(10)
         compressed = compressor.compress(msgs, strategy=strategy, target_tokens=200)
         assert compressed[0]["role"] == "system"
+
+
+def test_compress_no_target_tokens():
+    """Compress without target_tokens must still work."""
+    compressor = PromptCompressor()
+    msgs = _make_messages(5)
+    compressed = compressor.compress(msgs, strategy="smart")
+    assert len(compressed) >= 1  # at least system message
+
+
+def test_truncate_default_6():
+    """Default truncate must keep system + 6."""
+    compressor = PromptCompressor()
+    msgs = _make_messages(20)
+    compressed = compressor.compress(msgs, strategy="truncate")
+    assert len(compressed) <= 7
+
+
+def test_compression_report_ratio():
+    """Compression ratio must be between 0 and 1."""
+    compressor = PromptCompressor()
+    original = _make_messages(20)
+    compressed = compressor.compress(original, strategy="truncate")
+    report = compressor.get_compression_report(original, compressed)
+    assert 0 < report["compression_ratio"] <= 1
