@@ -405,7 +405,24 @@ class TwoTierCacheMiddleware:
             "l2_index_total": self._faiss_index.ntotal if self._faiss_index else 0,
             "redis_connected": self._redis is not None,
             "embedding_model": self._embedding_model_name,
+            "embedding_version": self._embedding_version,
         }
+
+    _embedding_version: str = "v1"  # Track embedding model version for drift detection
+
+    def set_embedding_version(self, version: str):
+        """Set embedding version. Changing version invalidates L2 cache.
+
+        SAFE-CACHE defense: model updates change embedding spaces,
+        breaking all existing cache matches silently. Track version
+        to detect and handle this.
+        """
+        if version != self._embedding_version:
+            logger.warning(
+                "Embedding version changed: %s → %s. L2 cache may have stale entries.",
+                self._embedding_version, version
+            )
+            self._embedding_version = version
 
     def save_l2_index(self, path: str):
         """Persist FAISS index and metadata to disk for recovery."""

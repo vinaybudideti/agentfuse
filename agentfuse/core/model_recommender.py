@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # Model capabilities and characteristics
 MODEL_PROFILES = {
     # Tier 1: Frontier (best quality, highest cost)
-    "gpt-5.4": {"quality": 0.99, "speed": 0.5, "cost_per_1k": 0.0175, "context": 1_050_000, "strengths": ["reasoning", "code", "creative"]},
+    "gpt-5.4": {"quality": 0.99, "speed": 0.5, "cost_per_1k": 0.040, "context": 1_050_000, "strengths": ["reasoning", "code", "creative"]},
     "gpt-5.3": {"quality": 0.97, "speed": 0.6, "cost_per_1k": 0.0115, "context": 1_000_000, "strengths": ["reasoning", "code"]},
     "claude-opus-4-6": {"quality": 0.98, "speed": 0.4, "cost_per_1k": 0.030, "context": 200_000, "strengths": ["reasoning", "creative", "analysis"]},
 
