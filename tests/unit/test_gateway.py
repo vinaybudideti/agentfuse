@@ -8,7 +8,7 @@ from unittest.mock import patch, MagicMock
 from types import SimpleNamespace
 
 from agentfuse.gateway import (
-    completion, _get_engine, _record_cost, _validate_and_cache,
+    completion, acompletion, _get_engine, _record_cost, _validate_and_cache,
     get_engine, get_spend, cleanup, configure, get_spend_report,
     estimate_cost,
 )
@@ -390,6 +390,17 @@ def test_estimate_cost_different_models():
     cheap = estimate_cost("gpt-4o-mini", [{"role": "user", "content": "hi"}])
     expensive = estimate_cost("gpt-4o", [{"role": "user", "content": "hi"}])
     assert expensive["estimated_total_cost_usd"] > cheap["estimated_total_cost_usd"]
+
+
+@pytest.mark.asyncio
+async def test_acompletion_cache_hit():
+    """Async completion must return cached responses."""
+    from agentfuse.gateway import _cache
+    msgs = [{"role": "user", "content": "async cache test unique 4321"}]
+    _cache.store(model="gpt-4o", messages=msgs, response="Async cached response")
+
+    result = await acompletion(model="gpt-4o", messages=msgs)
+    assert result.choices[0].message.content == "Async cached response"
 
 
 def test_configure_sets_alert_manager():

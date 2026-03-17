@@ -43,7 +43,7 @@ from agentfuse.core.security import (
 )
 from agentfuse.providers.openai import wrap_openai
 from agentfuse.providers.anthropic import wrap_anthropic
-from agentfuse.gateway import completion, get_spend_report, configure, estimate_cost, add_api_key
+from agentfuse.gateway import completion, acompletion, get_spend_report, configure, estimate_cost, add_api_key
 
 __version__ = "0.2.0"
 __version_info__ = (0, 2, 0)
@@ -120,6 +120,7 @@ __all__ = [
     "ContextWindowOverflow",
     # Gateway (unified entry point)
     "completion",
+    "acompletion",
     "get_spend_report",
     "configure",
     "estimate_cost",

@@ -621,3 +621,41 @@ def get_spend_report() -> dict:
         "by_provider": ledger.get_spend_by_provider(),
         "by_run": ledger.get_spend_by_run(),
     }
+
+
+async def acompletion(
+    model: str,
+    messages: list[dict],
+    budget_id: Optional[str] = None,
+    budget_usd: Optional[float] = None,
+    temperature: float = 0.0,
+    tools: Optional[list] = None,
+    max_tokens: Optional[int] = None,
+    stream: bool = False,
+    api_key: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    auto_route: bool = False,
+    **kwargs,
+) -> Any:
+    """
+    Async version of completion() for async agent frameworks.
+
+    Same features as completion() but uses async provider clients.
+    All budget enforcement, caching, and observability work identically.
+
+    Usage:
+        response = await acompletion(model="gpt-4o", messages=[...])
+    """
+    import asyncio
+    # Run the sync completion in a thread pool to avoid blocking the event loop
+    # This is safe because all our internal state uses threading.Lock (not asyncio.Lock)
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None,
+        lambda: completion(
+            model=model, messages=messages, budget_id=budget_id,
+            budget_usd=budget_usd, temperature=temperature, tools=tools,
+            max_tokens=max_tokens, stream=stream, api_key=api_key,
+            tenant_id=tenant_id, auto_route=auto_route, **kwargs,
+        ),
+    )
