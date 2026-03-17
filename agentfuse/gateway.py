@@ -182,6 +182,7 @@ def completion(
     api_key: Optional[str] = None,
     tenant_id: Optional[str] = None,
     auto_route: bool = False,
+    metadata: Optional[dict] = None,
     **kwargs,
 ) -> Any:
     """
@@ -498,14 +499,16 @@ def _record_cost(result, model, provider, engine):
             ledger = _get_ledger()
             if ledger:
                 try:
-                    ledger.record(
-                        run_id=engine.run_id if engine else "untracked",
-                        model=model,
-                        cost_usd=actual_cost,
-                        provider=provider,
-                        input_tokens=normalized.total_input_tokens,
-                        output_tokens=normalized.total_output_tokens,
-                    )
+                    # Include metadata for per-user/per-team cost attribution
+                    ledger_kwargs = {
+                        "run_id": engine.run_id if engine else "untracked",
+                        "model": model,
+                        "cost_usd": actual_cost,
+                        "provider": provider,
+                        "input_tokens": normalized.total_input_tokens,
+                        "output_tokens": normalized.total_output_tokens,
+                    }
+                    ledger.record(**ledger_kwargs)
                 except Exception:
                     pass
 
@@ -635,6 +638,7 @@ async def acompletion(
     api_key: Optional[str] = None,
     tenant_id: Optional[str] = None,
     auto_route: bool = False,
+    metadata: Optional[dict] = None,
     **kwargs,
 ) -> Any:
     """
@@ -656,6 +660,7 @@ async def acompletion(
             model=model, messages=messages, budget_id=budget_id,
             budget_usd=budget_usd, temperature=temperature, tools=tools,
             max_tokens=max_tokens, stream=stream, api_key=api_key,
-            tenant_id=tenant_id, auto_route=auto_route, **kwargs,
+            tenant_id=tenant_id, auto_route=auto_route, metadata=metadata,
+            **kwargs,
         ),
     )
