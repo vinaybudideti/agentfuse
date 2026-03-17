@@ -58,6 +58,18 @@ response = completion(model="deepseek/deepseek-chat", messages=[...])
 response = completion(model="gpt-4o", messages=[...], auto_route=True)
 ```
 
+**Session API — all-in-one context manager (recommended):**
+```python
+from agentfuse import AgentSession
+
+with AgentSession("my_agent", budget_usd=5.00) as session:
+    response = session.completion(messages=[{"role": "user", "content": "What is Python?"}])
+    session.record_tool_call("web_search", cost=0.01)  # track tool costs too
+
+receipt = session.get_receipt()
+# {'total_cost_usd': 0.52, 'llm_cost_usd': 0.51, 'tool_cost_usd': 0.01, 'cache_hit_rate': 0.3, ...}
+```
+
 **Check your spend (persists across restarts):**
 ```python
 from agentfuse import get_spend_report
