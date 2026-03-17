@@ -64,10 +64,27 @@ class StreamingCostMiddleware:
         Wraps a streaming LLM response generator.
         Yields (chunk, current_cost) tuples.
         Raises StreamCostLimitReached if max_stream_cost exceeded.
+
+        Handles OpenAI final usage chunk (choices=[], usage=...) for exact counts.
+        Handles Anthropic message_delta with cumulative output_tokens.
         """
         input_cost = self.pricing.input_cost(self.model, input_tokens)
 
         for chunk in stream_generator:
+            # OpenAI final usage chunk: choices=[] and usage is not None
+            # (stream_options={"include_usage": True})
+            usage = getattr(chunk, "usage", None)
+            if usage is not None:
+                exact_input = getattr(usage, "prompt_tokens", input_tokens)
+                exact_output = getattr(usage, "completion_tokens", self.token_count)
+                self.token_count = exact_output
+                self.stream_cost = (
+                    self.pricing.input_cost(self.model, exact_input)
+                    + self.pricing.output_cost(self.model, exact_output)
+                )
+                yield chunk, self.stream_cost
+                continue
+
             content = self._extract_content(chunk)
             chunk_tokens = self._estimate_tokens(content)
 
