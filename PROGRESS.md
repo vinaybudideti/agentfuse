@@ -1,8 +1,8 @@
 # AgentFuse Build Progress
 
-## Current State: v0.2.0 — Production-Grade
+## Current State: v0.2.1 — Production-Grade + Security Hardened
 
-**439 unit tests | 47 exports | 88% core coverage | 128 commits | ALL GREEN**
+**569 unit tests | 54 exports | 90% core coverage | 164 commits | ALL GREEN | 0 CVEs**
 
 GitHub: https://github.com/vinaybudideti/agentfuse
 
