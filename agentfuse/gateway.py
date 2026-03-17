@@ -55,6 +55,7 @@ from agentfuse.core.model_router import IntelligentModelRouter
 from agentfuse.core.dedup import RequestDeduplicator
 from agentfuse.core.fallback_chain import DEFAULT_CHAINS
 from agentfuse.core.security import validate_response_safety, strip_invisible_chars
+from agentfuse.core.kill_switch import kill_switch
 
 # Observability imports — all optional, never crash if unavailable
 try:
@@ -205,6 +206,10 @@ def completion(
         native format for Anthropic)
     """
     start_time = time.monotonic()
+
+    # Kill switch check — BEFORE anything else, outside AI reasoning path
+    if budget_id:
+        kill_switch.check(budget_id)
 
     # Input validation — fail fast on obviously bad inputs
     if not model or not isinstance(model, str):
