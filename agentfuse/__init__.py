@@ -35,6 +35,7 @@ from agentfuse.core.conversation_estimator import ConversationCostEstimator
 from agentfuse.core.hierarchical_budget import HierarchicalBudget
 from agentfuse.core.session import AgentSession
 from agentfuse.core.kill_switch import kill_switch, AgentKilled
+from agentfuse.core.analytics import UsageAnalytics
 from agentfuse.core.security import (
     mask_api_key, validate_api_key_format, check_prompt_injection,
     validate_response_safety, SecurityEvent,
@@ -113,6 +114,7 @@ __all__ = [
     "AgentSession",
     "kill_switch",
     "AgentKilled",
+    "UsageAnalytics",
     # Gateway (unified entry point)
     "completion",
     "get_spend_report",
