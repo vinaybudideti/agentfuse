@@ -40,6 +40,7 @@ from agentfuse.core.guardrails import ContentGuardrails, GuardrailResult
 from agentfuse.core.report_exporter import ReportExporter
 from agentfuse.core.model_recommender import ModelRecommender
 from agentfuse.core.quality_scorer import ResponseQualityScorer, QualityScore
+from agentfuse.core.cost_forecast import CostForecast
 from agentfuse.core.context_guard import ContextWindowGuard, ContextWindowOverflow
 from agentfuse.core.security import (
     mask_api_key, validate_api_key_format, check_prompt_injection,
@@ -126,6 +127,7 @@ __all__ = [
     "ModelRecommender",
     "ResponseQualityScorer",
     "QualityScore",
+    "CostForecast",
     "ContextWindowGuard",
     "ContextWindowOverflow",
     # Gateway (unified entry point)
