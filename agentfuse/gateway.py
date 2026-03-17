@@ -75,6 +75,29 @@ _tokenizer = TokenCounterAdapter()
 _optimizer = RequestOptimizer(_pricing, _tokenizer)
 _router = IntelligentModelRouter()
 _dedup = RequestDeduplicator()
+_alert_manager = None  # lazily initialized via configure()
+
+
+def configure(
+    alert_callback=None,
+    alert_webhook_url: Optional[str] = None,
+    alert_thresholds: Optional[list[float]] = None,
+):
+    """Configure gateway-level settings.
+
+    Args:
+        alert_callback: Function called when cost threshold is crossed
+        alert_webhook_url: URL to POST cost alerts to (e.g., Slack webhook)
+        alert_thresholds: List of budget percentages to alert at (default: [0.50, 0.75, 0.90])
+    """
+    global _alert_manager
+    if alert_callback or alert_webhook_url:
+        from agentfuse.core.cost_alert import CostAlertManager
+        _alert_manager = CostAlertManager(
+            thresholds=alert_thresholds,
+            callback=alert_callback,
+            webhook_url=alert_webhook_url,
+        )
 _spend_ledger = None  # lazily initialized
 
 
@@ -358,6 +381,12 @@ def _record_cost(result, model, provider, engine):
             actual_cost = _pricing.total_cost_normalized(model, normalized)
             if engine:
                 engine.record_cost(actual_cost)
+                # Check cost alerts
+                if _alert_manager:
+                    try:
+                        _alert_manager.check(engine)
+                    except Exception:
+                        pass
 
             # Record to persistent ledger (out of hot path — append-only file)
             ledger = _get_ledger()
