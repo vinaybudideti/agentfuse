@@ -27,11 +27,25 @@
 - Anthropic prompt cache minimum thresholds: Opus 4.6→4096, Sonnet 4.6→2048, Haiku 4.5→4096
 - Singleton RequestOptimizer/IntelligentModelRouter (avoid per-call allocation)
 
+### Novel Inventions
+- **CostPredictiveRouter** — predicts cost trajectory, pre-emptively routes to cheaper models
+- **PromptCompressor** — 3-strategy intelligent compression (smart/priority/truncate)
+- **ToolCostTracker** — unified LLM + tool call cost tracking in one budget
+- **ConversationCostEstimator** — detects flat/linear/exponential cost patterns
+- **HierarchicalBudget** — parent-child budget allocation for multi-agent systems
+- **AgentSession** — all-in-one context manager with auto cost tracking
+- **KillSwitch** — emergency stop at gateway level (outside AI reasoning path)
+- **ContextWindowGuard** — auto-prevents context window overflow before API call
+- **UsageAnalytics** — actionable cost insights with optimization recommendations
+
+### Production Gateway (19-step flow)
+Kill switch → validation → rate limit → optimize → route → context guard → budget → cache → dedup → API → fallback → cost → alerts → anomaly → metrics → ledger → validate → security → store
+
 ### Stats
-- 511 unit tests, all green
-- 90% core module coverage
-- 48 public API exports
-- 30+ models in registry
+- 668 unit tests, all green
+- 91% core module coverage
+- 69 public API exports
+- 35+ models in registry
 
 ## [0.2.0] — 2026-03-16
 
