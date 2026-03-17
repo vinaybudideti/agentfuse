@@ -320,3 +320,43 @@ def test_validate_and_cache_empty_response_not_cached():
     _validate_and_cache(result, "gpt-4o", "openai", msgs, 0.0, None, None)
     from agentfuse.core.cache import CacheMiss
     assert isinstance(_cache.lookup("gpt-4o", msgs), CacheMiss)
+
+
+@patch("agentfuse.gateway._call_openai_compatible")
+def test_completion_records_metrics_on_cache_hit(mock_call):
+    """Cache hit must increment metrics."""
+    from agentfuse.gateway import _cache
+    from agentfuse.observability.metrics import CACHE_HITS, CACHE_LOOKUPS, METRICS_AVAILABLE
+
+    if not METRICS_AVAILABLE:
+        return
+
+    msgs = [{"role": "user", "content": "metrics cache hit test 99"}]
+    _cache.store(model="gpt-4o", messages=msgs, response="Metrics test cached")
+
+    before_lookups = CACHE_LOOKUPS.labels(model="gpt-4o")._value.get()
+
+    completion(model="gpt-4o", messages=msgs)
+
+    after_lookups = CACHE_LOOKUPS.labels(model="gpt-4o")._value.get()
+    assert after_lookups > before_lookups
+
+
+@patch("agentfuse.gateway._call_openai_compatible")
+def test_completion_records_error_metrics(mock_call):
+    """Provider error must increment error metrics."""
+    from agentfuse.observability.metrics import ERRORS, METRICS_AVAILABLE
+
+    if not METRICS_AVAILABLE:
+        return
+
+    mock_call.side_effect = RuntimeError("test error for metrics")
+    before = ERRORS.labels(error_type="unknown_openai", provider="openai")._value.get()
+
+    try:
+        completion(model="gpt-4o", messages=[{"role": "user", "content": "error metrics"}])
+    except RuntimeError:
+        pass
+
+    after = ERRORS.labels(error_type="unknown_openai", provider="openai")._value.get()
+    assert after > before

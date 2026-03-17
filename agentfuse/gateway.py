@@ -50,6 +50,16 @@ from agentfuse.providers.response import extract_usage
 from agentfuse.providers.token_pattern import extract_with_pattern
 from agentfuse.providers.mock_responses import MockOpenAIResponse, MockAnthropicResponse
 
+# Observability imports — all optional, never crash if unavailable
+try:
+    from agentfuse.observability.metrics import (
+        record_cache_lookup, record_cost as record_cost_metric,
+        record_error as record_error_metric, record_tokens,
+    )
+    _METRICS = True
+except ImportError:
+    _METRICS = False
+
 logger = logging.getLogger(__name__)
 
 # Shared instances (thread-safe, singleton per process)
@@ -128,9 +138,21 @@ def completion(
     )
     if isinstance(cache_result, CacheHit):
         logger.debug("Cache hit (tier %d) for %s", cache_result.tier, model)
+        if _METRICS:
+            try:
+                record_cache_lookup(model, hit=True, tier=cache_result.tier)
+            except Exception:
+                pass
         if provider == "anthropic":
             return MockAnthropicResponse(cache_result.response, model)
         return MockOpenAIResponse(cache_result.response, model)
+
+    # Record cache miss
+    if _METRICS:
+        try:
+            record_cache_lookup(model, hit=False)
+        except Exception:
+            pass
 
     # Step 2: Budget check
     active_model = model
@@ -151,6 +173,11 @@ def completion(
     except Exception as exc:
         classified = classify_error(exc, provider)
         logger.warning("LLM call failed: %s (%s)", classified.error_type, provider)
+        if _METRICS:
+            try:
+                record_error_metric(classified.error_type, provider)
+            except Exception:
+                pass
         raise
 
     # Step 4: Record cost
@@ -263,6 +290,16 @@ def _record_cost(result, model, provider, engine):
             actual_cost = _pricing.total_cost_normalized(model, normalized)
             if engine:
                 engine.record_cost(actual_cost)
+
+            # Record metrics
+            if _METRICS:
+                try:
+                    record_cost_metric(model, provider, actual_cost)
+                    record_tokens(model,
+                                  input_tokens=normalized.total_input_tokens,
+                                  output_tokens=normalized.total_output_tokens)
+                except Exception:
+                    pass
     except Exception as e:
         logger.warning("Cost recording failed: %s", e)
 
