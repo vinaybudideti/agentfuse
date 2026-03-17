@@ -101,3 +101,29 @@ def test_unknown_model_no_crash():
         router.record_cost(2.0)
     result = router.predict_and_route("unknown-model")
     assert result == "unknown-model"  # no downgrade available
+
+
+def test_rising_cost_trend_triggers_downgrade():
+    """Rising costs with >60% spent must trigger early downgrade."""
+    router = CostPredictiveRouter(budget_usd=10.0, preemptive_threshold=0.60)
+    # Simulate rising costs: 0.5, 1.0, 1.5, 2.0, 2.5
+    for i in range(5):
+        router.record_cost(0.5 * (i + 1))
+    # Total spent: 7.5 (75%), trend is positive
+    result = router.predict_and_route("gpt-5.4")
+    assert result != "gpt-5.4"  # should downgrade due to rising costs
+
+
+def test_prediction_with_no_data():
+    """predict_and_route with no data must return original model."""
+    router = CostPredictiveRouter(budget_usd=10.0)
+    result = router.predict_and_route("gpt-4o")
+    assert result == "gpt-4o"
+
+
+def test_tier2_downgrade_finds_tier3():
+    """Tier 2 model must downgrade to a tier 3 model."""
+    router = CostPredictiveRouter(budget_usd=10.0)
+    result = router._find_cheaper_model("gpt-4.1")
+    assert result is not None
+    assert result == "gpt-4.1-mini"  # same family preferred
