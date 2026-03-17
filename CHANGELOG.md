@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.2.1] — 2026-03-16
+
+### Added
+- GPT-5 ($1.25/$10.00) and GPT-5.4 ($2.50/$15.00) model pricing
+- GPT-4.1-mini ($0.40/$1.60) and GPT-4.1-nano ($0.10/$0.40) pricing
+- Per-model-family cache discount multipliers (90% GPT-5, 75% GPT-4.1, 50% GPT-4o, 90% Gemini)
+- `get_spend_report()` — persistent spend analytics (survives process restarts)
+- SpendLedger wired into gateway for automatic cost and cache-hit recording
+- Prometheus metrics wired into gateway (cache lookup, cost, errors, tokens)
+- CacheAttack defense: dual-threshold verification (0.95 write, 0.90 read)
+- Per-tenant L2 cache isolation (prevents cross-tenant cache poisoning)
+- L2→L1 cache promotion (semantic hits promoted for sub-ms repeat latency)
+- `ClassifiedError.counts_for_circuit_breaker` (excludes 429s from breaker)
+- GPT-5 downgrade chain: 5.4→5→4.1→4.1-mini→4.1-nano
+- GPT-5 fallback chains and routing pairs
+- Anthropic `cache_creation` sub-object with TTL breakdowns (5-min vs 1-hour)
+- 1-hour cache write TTL at 2.0× pricing (vs 1.25× for 5-min)
+- Gemini `tool_use_prompt_token_count` added to input tokens
+- 10 new GCRA rate limiter tests
+
+### Fixed
+- Handle all new finish/stop reasons: `content_filter`, `max_tokens`, `pause_turn`, `refusal`, `SAFETY`, `RECITATION`
+- Skip Anthropic thinking blocks when extracting text for cache
+- OpenAI Agents SDK Model.get_response() updated to v0.12.2 signature
+- Anthropic prompt cache minimum thresholds: Opus 4.6→4096, Sonnet 4.6→2048, Haiku 4.5→4096
+- Singleton RequestOptimizer/IntelligentModelRouter (avoid per-call allocation)
+
+### Stats
+- 511 unit tests, all green
+- 90% core module coverage
+- 48 public API exports
+- 30+ models in registry
+
 ## [0.2.0] — 2026-03-16
 
 ### Added
