@@ -106,3 +106,52 @@ def test_no_max_stream_cost_allows_all():
     result = list(middleware.wrap_stream(iter(chunks), input_tokens=10))
     assert len(result) == 100
     assert middleware.token_count > 0  # estimated tokens from content
+
+
+def test_gemini_dict_format():
+    """Gemini dict-format chunks must be extracted."""
+    pricing = ModelPricingEngine()
+    budget = BudgetEngine("stream_gemini", 10.0, "gemini-2.5-pro")
+    middleware = StreamingCostMiddleware("gemini-2.5-pro", pricing, budget)
+
+    chunks = [
+        {"text": "Hello from Gemini"},
+        {"content": "More content"},
+        {"text": ""},  # empty
+    ]
+    costs = []
+    for _, cost in middleware.wrap_stream(iter(chunks), input_tokens=10):
+        costs.append(cost)
+
+    assert middleware.token_count >= 2
+
+
+def test_openai_final_usage_chunk():
+    """OpenAI final chunk with usage must set exact token counts."""
+    pricing = ModelPricingEngine()
+    budget = BudgetEngine("stream_usage", 10.0, "gpt-4o")
+    middleware = StreamingCostMiddleware("gpt-4o", pricing, budget)
+
+    chunks = [
+        _openai_chunk("Hello"),
+        _openai_chunk(" world"),
+        # Final usage chunk (choices=[], usage populated)
+        SimpleNamespace(
+            choices=[],
+            usage=SimpleNamespace(prompt_tokens=50, completion_tokens=100),
+        ),
+    ]
+    results = list(middleware.wrap_stream(iter(chunks), input_tokens=50))
+    assert len(results) == 3
+    # After usage chunk, token count should be exact
+    assert middleware.token_count == 100
+    assert middleware.get_final_cost() > 0
+
+
+def test_estimate_tokens_minimum():
+    """Token estimation must return at least 1 for non-empty content."""
+    pricing = ModelPricingEngine()
+    budget = BudgetEngine("stream_min", 10.0, "gpt-4o")
+    middleware = StreamingCostMiddleware("gpt-4o", pricing, budget)
+    assert middleware._estimate_tokens("a") == 1
+    assert middleware._estimate_tokens("") == 0
