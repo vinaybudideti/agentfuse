@@ -53,6 +53,7 @@ from agentfuse.core.request_optimizer import RequestOptimizer
 from agentfuse.core.model_router import IntelligentModelRouter
 from agentfuse.core.dedup import RequestDeduplicator
 from agentfuse.core.fallback_chain import DEFAULT_CHAINS
+from agentfuse.core.security import validate_response_safety, strip_invisible_chars
 
 # Observability imports — all optional, never crash if unavailable
 try:
@@ -455,10 +456,13 @@ def _validate_and_cache(result, model, provider, messages,
                 finish_reason = getattr(choice, "finish_reason", None)
 
         if response_text and validate_for_cache(response_text, finish_reason=finish_reason):
-            _cache.store(
-                model=model, messages=messages, response=response_text,
-                temperature=temperature, tools=tools, tenant_id=tenant_id,
-            )
+            # Security: check response for malicious content before caching
+            is_safe, _ = validate_response_safety(response_text)
+            if is_safe:
+                _cache.store(
+                    model=model, messages=messages, response=response_text,
+                    temperature=temperature, tools=tools, tenant_id=tenant_id,
+                )
     except Exception as e:
         logger.warning("Cache storage failed: %s", e)
 

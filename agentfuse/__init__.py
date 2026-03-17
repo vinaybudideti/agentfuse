@@ -28,6 +28,10 @@ from agentfuse.core.middleware import MiddlewarePipeline, LLMRequest, LLMRespons
 from agentfuse.core.cache_quality import CacheQualityTracker
 from agentfuse.core.gcra_limiter import GCRARateLimiter
 from agentfuse.core.batch_detector import BatchEligibilityDetector
+from agentfuse.core.security import (
+    mask_api_key, validate_api_key_format, check_prompt_injection,
+    validate_response_safety, SecurityEvent,
+)
 from agentfuse.providers.openai import wrap_openai
 from agentfuse.providers.anthropic import wrap_anthropic
 from agentfuse.gateway import completion, get_spend_report, configure
@@ -97,6 +101,12 @@ __all__ = [
     "completion",
     "get_spend_report",
     "configure",
+    # Security
+    "mask_api_key",
+    "validate_api_key_format",
+    "check_prompt_injection",
+    "validate_response_safety",
+    "SecurityEvent",
     # Provider wrappers (legacy)
     "wrap_openai",
     "wrap_anthropic",
