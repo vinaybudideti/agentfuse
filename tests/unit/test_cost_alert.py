@@ -187,3 +187,19 @@ def test_callback_error_doesnt_crash():
     # Should not raise
     result = manager.check(engine)
     assert result is not None
+
+
+def test_check_with_none_engine():
+    """check with None engine must return None."""
+    manager = CostAlertManager(thresholds=[0.50])
+    assert manager.check(None) is None
+
+
+def test_check_with_zero_budget():
+    """check with zero budget engine must return None."""
+    engine = BudgetEngine.__new__(BudgetEngine)
+    engine.budget = 0
+    engine.spent = 0
+    engine.run_id = "zero"
+    manager = CostAlertManager(thresholds=[0.50])
+    assert manager.check(engine) is None
