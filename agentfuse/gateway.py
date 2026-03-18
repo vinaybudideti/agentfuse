@@ -436,6 +436,10 @@ def _call_openai_compatible(model, messages, temperature, tools,
         call_kwargs["max_tokens"] = max_tokens
     if stream:
         call_kwargs["stream"] = True
+        # Auto-inject stream_options for usage tracking
+        # Research file 4: "If you forget stream_options, you get zero usage data"
+        if "stream_options" not in kwargs:
+            call_kwargs["stream_options"] = {"include_usage": True}
     call_kwargs.update(kwargs)
 
     return client.chat.completions.create(**call_kwargs)
