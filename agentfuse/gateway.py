@@ -653,23 +653,140 @@ async def acompletion(
     """
     Async version of completion() for async agent frameworks.
 
-    Same features as completion() but uses async provider clients.
-    All budget enforcement, caching, and observability work identically.
+    Uses native AsyncOpenAI/AsyncAnthropic clients for true non-blocking I/O.
+    Falls back to run_in_executor if native async clients unavailable.
+
+    All budget enforcement, caching, and observability work identically
+    to the sync completion() — they use threading.Lock which is safe
+    to call from async code (they don't block the event loop for long).
 
     Usage:
         response = await acompletion(model="gpt-4o", messages=[...])
     """
+    start_time = time.monotonic()
+
+    # Kill switch + validation + deprecation (same as sync)
+    if budget_id:
+        kill_switch.check(budget_id)
+    if not model or not isinstance(model, str):
+        raise ValueError("model must be a non-empty string")
+    if not isinstance(messages, list):
+        raise ValueError("messages must be a list of dicts")
+
+    model = _deprecation_checker.check_and_suggest(model)
+    provider, base_url = resolve_provider(model)
+
+    # Cache check (sync — fast, no I/O)
+    messages, _ = _optimizer.optimize(messages, model)
+    if auto_route:
+        model = _router.route(model, messages)
+        provider, base_url = resolve_provider(model)
+
+    messages = _context_guard.ensure_fits(messages, model, max_output_tokens=max_tokens or 4096)
+
+    cache_result = _cache.lookup(
+        model=model, messages=messages,
+        temperature=temperature, tools=tools, tenant_id=tenant_id,
+    )
+    if isinstance(cache_result, CacheHit):
+        if provider == "anthropic":
+            return MockAnthropicResponse(cache_result.response, model)
+        return MockOpenAIResponse(cache_result.response, model)
+
+    # Budget check (sync — fast)
+    engine = _get_engine(budget_id, budget_usd, model) if budget_id else None
+    active_model = model
+    if engine:
+        token_count = _tokenizer.count_messages(messages, model)
+        est_cost = _pricing.input_cost(model, token_count)
+        messages, active_model = engine.check_and_act(est_cost, messages)
+
+    # Native async provider call
+    try:
+        result = await _call_provider_async(
+            active_model, provider, base_url, messages, temperature,
+            tools, max_tokens, stream, api_key, **kwargs,
+        )
+    except Exception as exc:
+        classified = classify_error(exc, provider)
+        logger.warning("Async LLM call failed: %s (%s)", classified.error_type, provider)
+        raise
+
+    # Post-call processing (sync — fast)
+    if not stream:
+        _record_cost(result, active_model, provider, engine)
+        _validate_and_cache(result, active_model, provider, messages,
+                             temperature, tools, tenant_id)
+
+    return result
+
+
+async def _call_provider_async(model, provider, base_url, messages, temperature,
+                                tools, max_tokens, stream, api_key, **kwargs):
+    """Make async provider call using native async clients."""
+    if provider == "anthropic":
+        try:
+            import anthropic
+            client_kwargs = {}
+            if api_key:
+                client_kwargs["api_key"] = api_key
+            client = anthropic.AsyncAnthropic(**client_kwargs)
+
+            system_msgs = [m["content"] for m in messages if m.get("role") == "system"]
+            chat_msgs = [m for m in messages if m.get("role") != "system"]
+
+            call_kwargs = {
+                "model": model,
+                "messages": chat_msgs,
+                "max_tokens": max_tokens or 4096,
+            }
+            if system_msgs:
+                call_kwargs["system"] = "\n".join(system_msgs)
+            if temperature > 0:
+                call_kwargs["temperature"] = temperature
+            if tools:
+                call_kwargs["tools"] = tools
+            call_kwargs.update(kwargs)
+
+            return await client.messages.create(**call_kwargs)
+        except ImportError:
+            pass  # fall through to executor
+
+    # OpenAI-compatible (native async)
+    try:
+        import openai
+        client_kwargs = {}
+        if api_key:
+            client_kwargs["api_key"] = api_key
+        if base_url:
+            client_kwargs["base_url"] = base_url
+        client = openai.AsyncOpenAI(**client_kwargs)
+
+        call_kwargs = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+        }
+        if tools:
+            call_kwargs["tools"] = tools
+        if max_tokens:
+            call_kwargs["max_tokens"] = max_tokens
+        if stream:
+            call_kwargs["stream"] = True
+        call_kwargs.update(kwargs)
+
+        return await client.chat.completions.create(**call_kwargs)
+    except ImportError:
+        pass
+
+    # Fallback: run sync completion in executor
     import asyncio
-    # Run the sync completion in a thread pool to avoid blocking the event loop
-    # This is safe because all our internal state uses threading.Lock (not asyncio.Lock)
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(
         None,
         lambda: completion(
-            model=model, messages=messages, budget_id=budget_id,
-            budget_usd=budget_usd, temperature=temperature, tools=tools,
-            max_tokens=max_tokens, stream=stream, api_key=api_key,
-            tenant_id=tenant_id, auto_route=auto_route, metadata=metadata,
-            **kwargs,
+            model=model, messages=messages, api_key=api_key,
+            temperature=temperature, tools=tools, max_tokens=max_tokens,
+            stream=stream, **kwargs,
         ),
     )

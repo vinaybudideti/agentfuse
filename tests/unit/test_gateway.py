@@ -394,13 +394,20 @@ def test_estimate_cost_different_models():
 
 @pytest.mark.asyncio
 async def test_acompletion_cache_hit():
-    """Async completion must return cached responses."""
+    """Async completion must return cached responses via native async path."""
     from agentfuse.gateway import _cache
     msgs = [{"role": "user", "content": "async cache test unique 4321"}]
     _cache.store(model="gpt-4o", messages=msgs, response="Async cached response")
 
     result = await acompletion(model="gpt-4o", messages=msgs)
     assert result.choices[0].message.content == "Async cached response"
+
+
+@pytest.mark.asyncio
+async def test_acompletion_validates_input():
+    """Async completion must validate inputs like sync."""
+    with pytest.raises(ValueError, match="model must be"):
+        await acompletion(model="", messages=[])
 
 
 def test_configure_sets_alert_manager():
