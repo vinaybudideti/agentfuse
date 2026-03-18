@@ -97,6 +97,11 @@ def check_prompt_injection(text: str) -> tuple[bool, str]:
     Returns (is_suspicious, reason).
     This is a heuristic check — not a guarantee of safety.
     Use as a warning signal, not a blocking mechanism.
+
+    For production PII detection, use Microsoft Presidio:
+    pip install presidio-analyzer presidio-anonymizer
+    Performance: <10ms per 1000-token prompt (warm calls)
+    Supports 50+ entity types with full offline operation.
     """
     if not text:
         return False, ""
