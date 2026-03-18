@@ -392,6 +392,17 @@ All pushed to github.com/vinaybudideti/agentfuse
 - F2: OpenAI Responses API support (replacing Chat Completions)
 - F4: LangGraph integration (38M monthly PyPI downloads)
 
-Final state: 1005 unit tests, 93% core coverage, 79 public exports, 246 commits
-20-step gateway flow, 42 core modules, 79 test files, 0 CVEs
+### Session 6 — Continuous Learning + Framework Integrations
+- Native async provider calls (AsyncOpenAI/AsyncAnthropic) in acompletion()
+- MCP integration (5 tools: budget_check, estimate_cost, spend_report, kill, recommend)
+- LangGraph integration (AgentFuseNode, budget_guard, cost_tracking_callback)
+- OpenAI Responses API adapter (normalize GPT-5.3/5.4 responses)
+- CacheMonitor (SAFE-CACHE sliding window hit/miss rate monitoring)
+- Pydantic AI integration (wrap_pydantic_agent, get_agent_receipt)
+- GPT-5.4 pricing corrected: $10/$30 (from online research)
+- New models: Mistral Medium 3, DeepSeek V3.2, Llama 4 Maverick
+
+Final state: 1050+ unit tests, 93% core coverage, 80 public exports, 258 commits
+20-step gateway flow, 42 core modules, 84+ test files, 0 CVEs
+6 framework integrations: LangChain, CrewAI, OpenAI Agents, MCP, LangGraph, Pydantic AI
 All pushed to github.com/vinaybudideti/agentfuse
