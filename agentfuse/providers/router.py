@@ -23,6 +23,10 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, str] = {
     "openrouter": "https://openrouter.ai/api/v1",
     "ollama": "http://localhost:11434/v1",
     "vllm": "http://localhost:8000/v1",
+    # Cloud providers (Azure/AWS use OpenAI-compatible format)
+    "azure": None,  # base_url set via AZURE_OPENAI_ENDPOINT env var
+    "bedrock": None,  # uses AWS SDK, not OpenAI-compatible
+    "siliconflow": "https://api.siliconflow.cn/v1",
 }
 
 
@@ -60,6 +64,12 @@ def resolve_provider(model: str) -> tuple[str, Optional[str]]:
     # Grok / xAI
     if model.startswith("grok"):
         return ("xai", OPENAI_COMPATIBLE_PROVIDERS["xai"])
+
+    # Azure OpenAI
+    if model.startswith("azure/"):
+        import os
+        base_url = os.environ.get("AZURE_OPENAI_ENDPOINT")
+        return ("azure", base_url)
 
     # Fine-tuned models (ft:base-model:org:name)
     if model.startswith("ft:"):
