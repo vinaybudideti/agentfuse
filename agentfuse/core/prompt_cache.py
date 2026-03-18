@@ -96,27 +96,35 @@ class PromptCachingMiddleware:
             for p in self.DYNAMIC_PATTERNS
         )
 
-    def _add_cache_control(self, msg: dict) -> dict:
+    def _add_cache_control(self, msg: dict, ttl: str = "5m") -> dict:
         """Adds Anthropic cache_control marker to a message.
 
         If content is a string, wraps in a text block with cache_control.
         If content is already a list, adds cache_control to the last text block.
+
+        TTL options:
+        - "5m" (default): 5-minute ephemeral, 1.25× write cost
+        - "1h": 1-hour extended, 2.0× write cost (better for batch workloads)
         """
         msg = copy.deepcopy(msg)
         content = msg.get("content")
+
+        cache_control = {"type": "ephemeral"}
+        if ttl == "1h":
+            cache_control["ttl"] = "1h"  # Extended 1-hour TTL
 
         if isinstance(content, str):
             msg["content"] = [
                 {
                     "type": "text",
                     "text": content,
-                    "cache_control": {"type": "ephemeral"},
+                    "cache_control": cache_control,
                 }
             ]
         elif isinstance(content, list):
             # Find the last text block and add cache_control to it
             for block in reversed(content):
                 if isinstance(block, dict) and block.get("type") == "text":
-                    block["cache_control"] = {"type": "ephemeral"}
+                    block["cache_control"] = cache_control
                     break
         return msg
