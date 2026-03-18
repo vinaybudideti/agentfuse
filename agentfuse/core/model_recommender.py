@@ -48,6 +48,7 @@ MODEL_PROFILES = {
 
     # Tier 4: Minimal (cheapest)
     "gpt-4.1-nano": {"quality": 0.78, "speed": 0.98, "cost_per_1k": 0.0005, "context": 1_000_000, "strengths": ["factual", "simple", "fast"]},
+    "deepseek/deepseek-v3.2": {"quality": 0.85, "speed": 0.9, "cost_per_1k": 0.0007, "context": 128_000, "strengths": ["reasoning", "code", "factual"]},
 }
 
 

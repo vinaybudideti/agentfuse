@@ -80,7 +80,9 @@ class TokenCounterAdapter:
             return int(len(enc.encode(text)) * 1.15)
 
         # OpenAI gpt-oss (open-weight, Apache 2.0, released Aug 2025)
-        # Uses o200k_harmony encoding (identical to o200k_base for plain text)
+        # Uses o200k_harmony encoding (201,088 tokens = o200k_base + 1,088 special tokens)
+        # For plain text, o200k_base produces identical counts.
+        # Known bug: tiktoken issue #457 — duplicate special token at id 200018
         if model.startswith("gpt-oss"):
             enc = tiktoken.encoding_for_model("gpt-4o")  # o200k_base ≡ o200k_harmony for text
             return len(enc.encode(text))
