@@ -71,8 +71,10 @@ class StreamingCostMiddleware:
         input_cost = self.pricing.input_cost(self.model, input_tokens)
 
         for chunk in stream_generator:
-            # OpenAI final usage chunk: choices=[] and usage is not None
-            # (stream_options={"include_usage": True})
+            # Provider-specific usage extraction:
+            # - OpenAI: final chunk has choices=[], usage populated (requires stream_options opt-in)
+            # - Anthropic: output_tokens in message_delta is CUMULATIVE (do NOT add to start)
+            # - Gemini: every chunk has usageMetadata with cumulative counts
             usage = getattr(chunk, "usage", None)
             if usage is not None:
                 exact_input = getattr(usage, "prompt_tokens", input_tokens)

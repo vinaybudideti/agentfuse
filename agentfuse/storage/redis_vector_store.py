@@ -175,7 +175,9 @@ class RedisVectorStore:
             vec_bytes = query_vector.astype(np.float32).tobytes()
 
             # Build filter string
-            filter_parts = [f"@model_prefix:{{{model_prefix}}}"]
+            # TAG values with hyphens/dots MUST be escaped with double backslashes
+            escaped_prefix = model_prefix.replace("-", "\\-").replace(".", "\\.")
+            filter_parts = [f"@model_prefix:{{{escaped_prefix}}}"]
             tools_str = "true" if has_tools else "false"
             filter_parts.append(f"@has_tools:{{{tools_str}}}")
             if tenant_id:
