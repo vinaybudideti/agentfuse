@@ -1,6 +1,13 @@
 """
 IntelligentModelRouter — routes queries to strong vs weak models based on complexity.
 
+NOTE: For ML-based routing, install RouteLLM:
+    pip install "routellm[serve,eval]"
+    export OPENAI_API_KEY="sk-..."  # Required for embedding API
+
+RouteLLM MF router: ~30-90ms overhead (reducible to <10ms with local embeddings),
+generalizes to new model pairs without retraining (ICLR 2025).
+
 Based on RouteLLM (ICLR 2025, UC Berkeley/Anyscale/Canva):
 - Achieves 85% cost reduction at 95% of GPT-4 quality
 - Routes only 26% of queries to expensive models, 74% to cheap models
