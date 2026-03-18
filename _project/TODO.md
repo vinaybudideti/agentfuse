@@ -14,6 +14,25 @@
 - [x] 7 tests, graceful fallback
 
 ### A3. Add Streaming Response Caching ✅ DONE
+- [x] wrap_stream_with_cache() accumulates + caches after stream
+
+### B1. Remove Dead Code ✅ DONE
+- [x] Removed sqlite.py, redis.py stubs
+- [x] Dashboard server.py replaced with real FastAPI app
+
+### B2. Provider Wrapper Coverage ✅ DONE
+- [x] Mock-based tests for wrap_openai/wrap_anthropic
+
+### C1. Dashboard API ✅ DONE
+- [x] 5 FastAPI endpoints: /api/health, spend, forecast, analytics, models
+
+### F3. SAFE-CACHE Defense ✅ PARTIAL
+- [x] Embedding version tracking (detect drift)
+- [ ] Intent-level validation layer
+- [ ] Cache miss rate monitoring with alerting
+
+### F5. Pricing Updates ✅ DONE
+- [x] GPT-5.4 corrected $10/$30, new models added
 - [ ] After stream completes, accumulate full response text
 - [ ] Cache the accumulated response (same as non-streaming)
 - [ ] On cache hit for a streaming request, simulate streaming from cached text

@@ -41,10 +41,25 @@
 ### Production Gateway (19-step flow)
 Kill switch → validation → rate limit → optimize → route → context guard → budget → cache → dedup → API → fallback → cost → alerts → anomaly → metrics → ledger → validate → security → store
 
+### Infrastructure
+- **BatchSubmitter** — real OpenAI/Anthropic batch API execution (50% discount)
+- **RedisVectorStore** — Redis 8 HNSW for production L2 cache (persistence, 1M+ vectors)
+- **Dashboard API** — 5 FastAPI endpoints (health, spend, forecast, analytics, models)
+- **Streaming response caching** — accumulate + cache after stream completes
+- Embedding version tracking (SAFE-CACHE defense for drift detection)
+- Dead code removed (sqlite.py, redis.py stubs)
+
+### Pricing Updates (March 17, 2026)
+- GPT-5.4 corrected: $10/$30 per 1M (was $2.50/$15)
+- Mistral Medium 3: $0.40/$2.00
+- DeepSeek V3.2: $0.28/$0.42
+- Llama 4 Maverick: $0.27/$0.85
+- GPT-5.1 deprecation tracked (Mar 11, 2026)
+
 ### Stats
-- 668 unit tests, all green
-- 91% core module coverage
-- 69 public API exports
+- 1005 unit tests, all green
+- 93% core module coverage
+- 79 public API exports
 - 35+ models in registry
 
 ## [0.2.0] — 2026-03-16
