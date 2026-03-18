@@ -402,7 +402,22 @@ All pushed to github.com/vinaybudideti/agentfuse
 - GPT-5.4 pricing corrected: $10/$30 (from online research)
 - New models: Mistral Medium 3, DeepSeek V3.2, Llama 4 Maverick
 
-Final state: 1050+ unit tests, 93% core coverage, 80 public exports, 258 commits
-20-step gateway flow, 42 core modules, 84+ test files, 0 CVEs
-6 framework integrations: LangChain, CrewAI, OpenAI Agents, MCP, LangGraph, Pydantic AI
+### Session 7 — Research File 4 Applied (Deep Technical)
+**Pricing corrections (cross-verified with official docs):**
+- GPT-5.4: REVERTED to $2.50/$15.00 base, added GPT-5.4 Pro $30/$180
+- GPT-4.1 cached: $0.50→$0.20 (10% of base, not 25%)
+- GPT-5 context: 1M→128K, Gemini 2.5 Pro context: 1M→2M
+- Budget safety margin: 1.5x→1.2x (research says 10-20% buffer)
+
+**New features from research:**
+- AsyncSpendRecorder: non-blocking cost recording via asyncio.Queue
+- StreamUsageTracker: unified streaming usage across OpenAI/Anthropic/Gemini
+- Action-hash loop detection (from AgentBudget competitive analysis)
+- 1-hour cache TTL support for Anthropic batch workloads
+- Auto-inject stream_options for OpenAI streaming usage
+- Batch + cache stacking (95% savings on Anthropic)
+- Redis TAG escaping for hyphens/dots
+- tiktoken o200k_harmony bug warning (issue #457)
+
+Final state: 1060+ tests, 83+ exports, 274 commits, 74 modules, 90 test files
 All pushed to github.com/vinaybudideti/agentfuse
