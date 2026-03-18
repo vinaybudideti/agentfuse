@@ -45,6 +45,7 @@ from agentfuse.core.batch_submitter import BatchSubmitter, BatchJob
 from agentfuse.storage.redis_vector_store import RedisVectorStore
 from agentfuse.core.cache_monitor import CacheMonitor
 from agentfuse.core.cost_attribution import CostAttribution
+from agentfuse.core.usage_limits import UsageLimits, UsageLimitExceeded
 from agentfuse.core.context_guard import ContextWindowGuard, ContextWindowOverflow
 from agentfuse.core.security import (
     mask_api_key, validate_api_key_format, check_prompt_injection,
@@ -137,6 +138,8 @@ __all__ = [
     "RedisVectorStore",
     "CacheMonitor",
     "CostAttribution",
+    "UsageLimits",
+    "UsageLimitExceeded",
     "ContextWindowGuard",
     "ContextWindowOverflow",
     # Gateway (unified entry point)
