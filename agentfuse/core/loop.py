@@ -81,8 +81,40 @@ class LoopDetectionMiddleware:
             return 0.0
         return float(np.dot(a_arr, b_arr) / denom)
 
+    def check_action(self, action: str, step_cost: float = 0.0):
+        """Check for action-based loops (tool call repetition).
+
+        Tracks tool/action names instead of full prompt embeddings.
+        Faster than embedding-based detection (~0ms vs ~5-15ms).
+        Catches: agent calling same tool repeatedly with same args.
+
+        Based on AgentBudget's action-hash loop detection pattern.
+        """
+        import hashlib
+        action_hash = hashlib.md5(action.encode()).hexdigest()[:16]
+
+        with self._lock:
+            if not hasattr(self, '_action_window'):
+                self._action_window = []
+
+            # Check if this action hash matches recent actions
+            matches = sum(1 for h in self._action_window if h == action_hash)
+            if matches >= 3:  # same action 3+ times in window
+                self.loop_cost += step_cost
+                if self.loop_cost > self.cost_threshold:
+                    raise LoopDetected(
+                        loop_cost=self.loop_cost,
+                        similarity=1.0,  # exact match
+                    )
+
+            self._action_window.append(action_hash)
+            if len(self._action_window) > self.max_window:
+                self._action_window.pop(0)
+
     def reset(self):
         """Reset window for a new run."""
         with self._lock:
             self.window = []
             self.loop_cost = 0.0
+            if hasattr(self, '_action_window'):
+                self._action_window = []
