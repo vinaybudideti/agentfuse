@@ -276,7 +276,11 @@ class BatchSubmitter:
         return list(self._jobs.values())
 
     def estimate_savings(self, requests: list[dict], model: str = "gpt-4o") -> dict:
-        """Estimate savings from batching vs real-time."""
+        """Estimate savings from batching vs real-time.
+
+        Batch API: 50% discount on all providers.
+        Anthropic: batch + prompt caching STACKS to 95% savings ($0.15/MTok).
+        """
         from agentfuse.providers.pricing import ModelPricingEngine
         pricing = ModelPricingEngine()
 
@@ -285,10 +289,13 @@ class BatchSubmitter:
             est = pricing.estimate_cost(req.get("model", model), req["messages"])
             total_realtime += est
 
+        is_anthropic = model.startswith("claude")
+
         return {
             "request_count": len(requests),
             "realtime_cost_usd": round(total_realtime, 6),
-            "batch_cost_usd": round(total_realtime * 0.50, 6),  # 50% discount
+            "batch_cost_usd": round(total_realtime * 0.50, 6),
             "savings_usd": round(total_realtime * 0.50, 6),
             "savings_pct": 50.0,
+            "with_cache_stacking_pct": 95.0 if is_anthropic else 50.0,
         }
