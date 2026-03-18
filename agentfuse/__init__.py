@@ -46,6 +46,8 @@ from agentfuse.storage.redis_vector_store import RedisVectorStore
 from agentfuse.core.cache_monitor import CacheMonitor
 from agentfuse.core.cost_attribution import CostAttribution
 from agentfuse.core.usage_limits import UsageLimits, UsageLimitExceeded
+from agentfuse.storage.async_recorder import AsyncSpendRecorder
+from agentfuse.providers.stream_usage import StreamUsageTracker
 from agentfuse.core.context_guard import ContextWindowGuard, ContextWindowOverflow
 from agentfuse.core.security import (
     mask_api_key, validate_api_key_format, check_prompt_injection,
@@ -140,6 +142,8 @@ __all__ = [
     "CostAttribution",
     "UsageLimits",
     "UsageLimitExceeded",
+    "AsyncSpendRecorder",
+    "StreamUsageTracker",
     "ContextWindowGuard",
     "ContextWindowOverflow",
     # Gateway (unified entry point)
