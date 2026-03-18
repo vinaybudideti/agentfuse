@@ -3,34 +3,60 @@
 ## What This Project Is
 AgentFuse is a production-grade Python SDK for LLM agent cost optimization. It provides per-run budget enforcement, semantic caching, intelligent model routing, and unified observability across 12+ LLM providers.
 
-## Current State (2026-03-16)
-- **Version:** 0.2.0
-- **Tests:** 439 unit tests, ALL GREEN
-- **Commits:** 128, all pushed to github.com/vinaybudideti/agentfuse
-- **Exports:** 47 public API functions/classes
-- **Coverage:** 88% on core modules
+## Current State (2026-03-18)
+- **Version:** 0.2.1
+- **Tests:** 1041+ unit tests, ALL GREEN
+- **Commits:** 254, all pushed to github.com/vinaybudideti/agentfuse
+- **Exports:** 79 public API functions/classes
+- **Coverage:** 93% on core modules
+- **Core Modules:** 42
+- **Test Files:** 82+
 
 ## Key Entry Points
-- `agentfuse/gateway.py` — `completion()` function, the unified entry point
-- `agentfuse/__init__.py` — all 47 public exports
-- `agentfuse/core/` — 20+ core modules (budget, cache, retry, routing, etc.)
-- `agentfuse/providers/` — provider-specific code (openai, anthropic, pricing, tokenizer)
-- `tests/unit/` — 30+ test files
+- `agentfuse/gateway.py` — `completion()` and `acompletion()` functions
+- `agentfuse/__init__.py` — all 79 public exports
+- `agentfuse/core/` — 42 core modules
+- `agentfuse/providers/` — 10 provider modules (pricing, tokenizer, registry, router, responses_api)
+- `agentfuse/integrations/` — 5 integrations (langchain, crewai, openai_agents, mcp, langgraph)
+- `agentfuse/storage/` — 4 storage modules (memory, redis_store, spend_ledger, redis_vector_store)
+- `agentfuse/observability/` — 3 modules (otel, metrics, logging)
+- `agentfuse/dashboard/` — FastAPI cost dashboard (5 endpoints)
+- `tests/unit/` — 82+ test files
 
-## Architecture
-The system uses a gateway pattern (like LiteLLM) where `completion()` handles:
-1. Request optimization (remove empty/duplicate messages)
-2. Intelligent model routing (simple queries → cheap models)
-3. Cache lookup (L1 Redis exact + L2 FAISS semantic)
-4. Budget enforcement (graduated: alert 60%, downgrade 80%, compress 90%, terminate 100%)
-5. Provider routing (auto-detect from model name)
-6. Cost recording (normalized across providers, Anthropic cache billing)
-7. Response validation (don't cache truncated/garbage)
-8. Observability (OTel spans, Prometheus metrics, structlog)
+## Architecture — 20-Step Gateway Flow
+1. Kill switch check (outside AI reasoning path)
+2. Input validation (fail-fast)
+3. Deprecation check (warns on GPT-4/4o/4.1)
+4. Rate limiting (GCRA per-tenant)
+5. Request optimization (remove empty/duplicate messages)
+6. Intelligent model routing (RouteLLM-inspired)
+7. Context window guard (auto-compress if overflow)
+8. Budget check (graduated: alert 60%, downgrade 80%, compress 90%, terminate 100%)
+9. Cache lookup (L1 Redis exact + L2 FAISS/Redis HNSW semantic)
+10. Key pool selection (multiple API keys per model)
+11. Request deduplication (coalesce identical in-flight)
+12. Provider API call (OpenAI/Anthropic/Gemini + Responses API)
+13. Automatic model fallback on retryable errors
+14. Cost recording (normalized, Anthropic cache billing, audio tokens)
+15. Cost alerts (webhook delivery)
+16. Anomaly detection (EMA + z-score)
+17. Prometheus metrics + OTel spans
+18. SpendLedger recording (persistent JSONL)
+19. Response validation + security check (XSS, PII)
+20. Cache storage (with CacheAttack defense)
+
+## Novel Inventions (17 — no competitor has these)
+CostPredictiveRouter, PromptCompressor, ToolCostTracker,
+ConversationCostEstimator, HierarchicalBudget, AgentSession,
+KillSwitch, ContextWindowGuard, UsageAnalytics, ModelRecommender,
+ResponseQualityScorer, CostForecast, ContentGuardrails,
+ReportExporter, BatchSubmitter, RedisVectorStore, CacheMonitor
 
 ## Important Files
 - `_project/BUILD_LOG.md` — complete build history
-- `_project/RESEARCH_QUESTIONS.md` — blockers needing web research
+- `_project/DEEP_RESEARCH_DOC.md` — gap analysis + competitive intelligence
+- `_project/TODO.md` — TODO list (ALL 12 COMPLETE)
+- `_project/RESEARCH_QUESTIONS.md` — research questions
 - `_project/FEATURE_IDEAS.md` — future roadmap
 - `PROGRESS.md` — current progress summary
 - `CHANGELOG.md` — version changelog
@@ -52,4 +78,4 @@ pytest tests/unit/ tests/test_*.py -v  # full safe suite
 ```
 
 ## Research Applied
-Built with insights from LiteLLM, Portkey, Helicone architectures and 8 academic papers (RouteLLM ICLR 2025, GPT Semantic Cache, ContextCache, Redis langcache-embed-v2, cache poisoning defense). See `_project/BUILD_LOG.md` for details.
+Built with insights from LiteLLM, Portkey, Helicone, Bifrost architectures and 10+ academic papers (RouteLLM ICLR 2025, GPT Semantic Cache, ContextCache, Redis langcache-embed-v2, CacheAttack arXiv 2601.23088, SAFE-CACHE NDSS). Applied 3 deep research files with verified API schemas, pricing, and production patterns. See `_project/BUILD_LOG.md` for details.
