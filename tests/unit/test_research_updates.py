@@ -24,11 +24,11 @@ def test_gpt5_pricing_exists():
 
 
 def test_gpt54_pricing_exists():
-    """GPT-5.4 pricing must be in registry (updated Mar 2026: $10/$30)."""
+    """GPT-5.4 pricing must be in registry (verified: $2.50/$15.00 base)."""
     reg = ModelRegistry(refresh_hours=0)
     p = reg.get_pricing("gpt-5.4")
-    assert p["input"] == 10.00
-    assert p["output"] == 30.00
+    assert p["input"] == 2.50
+    assert p["output"] == 15.00
 
 
 def test_gpt5_cache_90pct_discount():
@@ -39,12 +39,12 @@ def test_gpt5_cache_90pct_discount():
     assert abs(cached_cost / full_cost - 0.10) < 0.01  # 10% of base
 
 
-def test_gpt41_cache_75pct_discount():
-    """GPT-4.1/o3/o4-mini get 75% cache discount (cached = 25% of base)."""
+def test_gpt41_cache_90pct_discount():
+    """GPT-4.1 cached = 10% of base ($0.20 vs $2.00)."""
     engine = ModelPricingEngine()
     full_cost = engine.input_cost("gpt-4.1", 1_000_000)
     cached_cost = engine.cached_input_cost("gpt-4.1", 1_000_000)
-    assert abs(cached_cost / full_cost - 0.25) < 0.01  # 25% of base
+    assert abs(cached_cost / full_cost - 0.10) < 0.01  # 10% of base
 
 
 def test_gpt4o_cache_50pct_discount():

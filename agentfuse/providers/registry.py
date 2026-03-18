@@ -29,15 +29,16 @@ BUILTIN_MODELS: dict[str, dict] = {
     "gpt-4o": {"input": 2.50, "output": 10.00, "cached_input": 1.25, "context": 128_000, "max_output": 16_000, "provider": "openai"},
     "gpt-4o-mini": {"input": 0.15, "output": 0.60, "cached_input": 0.075, "context": 128_000, "max_output": 16_000, "provider": "openai"},
     # OpenAI current (75% cache discount)
-    "gpt-4.1": {"input": 2.00, "output": 8.00, "cached_input": 0.50, "context": 1_000_000, "max_output": 32_000, "provider": "openai"},
-    "gpt-4.1-mini": {"input": 0.40, "output": 1.60, "cached_input": 0.10, "context": 1_000_000, "max_output": 32_000, "provider": "openai"},
-    "gpt-4.1-nano": {"input": 0.10, "output": 0.40, "cached_input": 0.025, "context": 1_000_000, "max_output": 32_000, "provider": "openai"},
+    "gpt-4.1": {"input": 2.00, "output": 8.00, "cached_input": 0.20, "context": 1_000_000, "max_output": 32_000, "provider": "openai"},
+    "gpt-4.1-mini": {"input": 0.40, "output": 1.60, "cached_input": 0.04, "context": 1_000_000, "max_output": 32_000, "provider": "openai"},
+    "gpt-4.1-nano": {"input": 0.10, "output": 0.40, "cached_input": 0.01, "context": 1_000_000, "max_output": 32_000, "provider": "openai"},
     "o3": {"input": 2.00, "output": 8.00, "cached_input": 0.50, "context": 200_000, "max_output": 100_000, "provider": "openai"},
     "o4-mini": {"input": 1.10, "output": 4.40, "cached_input": 0.275, "context": 200_000, "max_output": 100_000, "provider": "openai"},
     # OpenAI GPT-5 family (90% cache discount)
-    "gpt-5": {"input": 1.25, "output": 10.00, "cached_input": 0.125, "context": 1_000_000, "max_output": 32_000, "provider": "openai"},
+    "gpt-5": {"input": 1.25, "output": 10.00, "cached_input": 0.125, "context": 128_000, "max_output": 32_000, "provider": "openai"},
     "gpt-5.3": {"input": 1.50, "output": 10.00, "cached_input": 0.15, "context": 1_000_000, "max_output": 32_000, "provider": "openai"},
-    "gpt-5.4": {"input": 10.00, "output": 30.00, "cached_input": 1.00, "context": 1_050_000, "max_output": 32_000, "provider": "openai"},
+    "gpt-5.4": {"input": 2.50, "output": 15.00, "cached_input": 0.25, "context": 1_050_000, "max_output": 32_000, "provider": "openai"},
+    "gpt-5.4-pro": {"input": 30.00, "output": 180.00, "context": 1_050_000, "max_output": 32_000, "provider": "openai"},
     # Anthropic (cache read = 0.1x, cache write = 1.25x)
     "claude-sonnet-4-6": {"input": 3.00, "output": 15.00, "cached_input": 0.30, "context": 200_000, "max_output": 64_000, "provider": "anthropic"},
     "claude-haiku-4-5-20251001": {"input": 1.00, "output": 5.00, "cached_input": 0.10, "context": 200_000, "max_output": 64_000, "provider": "anthropic"},
@@ -45,7 +46,7 @@ BUILTIN_MODELS: dict[str, dict] = {
     "claude-sonnet-4-5": {"input": 3.00, "output": 15.00, "cached_input": 0.30, "context": 200_000, "max_output": 64_000, "provider": "anthropic"},
     # Google Gemini (cache read = 0.1x)
     "gemini-2.0-flash": {"input": 0.10, "output": 0.40, "cached_input": 0.01, "context": 1_000_000, "max_output": 8_000, "provider": "gemini"},
-    "gemini-2.5-pro": {"input": 1.25, "output": 10.00, "cached_input": 0.125, "context": 1_000_000, "max_output": 64_000, "provider": "gemini"},
+    "gemini-2.5-pro": {"input": 1.25, "output": 10.00, "cached_input": 0.125, "context": 2_000_000, "max_output": 64_000, "provider": "gemini"},
     # DeepSeek (90% cache discount)
     "deepseek/deepseek-chat": {"input": 0.28, "output": 0.42, "cached_input": 0.028, "context": 128_000, "max_output": 64_000, "provider": "deepseek"},
     "deepseek/deepseek-reasoner": {"input": 0.55, "output": 2.19, "cached_input": 0.055, "context": 128_000, "max_output": 64_000, "provider": "deepseek"},
