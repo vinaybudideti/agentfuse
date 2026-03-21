@@ -1,0 +1,15 @@
+include LICENSE
+include README.md
+include pyproject.toml
+
+recursive-include agentfuse *.py *.typed
+recursive-exclude agentfuse/intent_atoms/dashboard *
+recursive-exclude agentfuse/intent_atoms/benchmarks *
+
+exclude CLAUDE.md
+exclude PROGRESS.md
+exclude CHANGELOG.md
+prune .claude
+prune _project
+prune tests
+prune examples

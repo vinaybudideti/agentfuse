@@ -5,8 +5,8 @@
 ![PyPI](https://img.shields.io/pypi/v/agentfuse-runtime)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
-![Tests](https://img.shields.io/badge/tests-1022%20passing-brightgreen)
-![Coverage](https://img.shields.io/badge/core%20coverage-88%25-green)
+![Tests](https://img.shields.io/badge/tests-1080%20passing-brightgreen)
+![Coverage](https://img.shields.io/badge/core%20coverage-86%25-green)
 
 AgentFuse is a production-grade Python SDK that optimizes LLM costs through intelligent model routing, semantic caching, graduated budget enforcement, and unified observability across OpenAI, Anthropic, Google Gemini, DeepSeek, Mistral, and 12+ providers. Built with insights from LiteLLM, Portkey, and Helicone architectures, and backed by research from 8 academic papers.
 
@@ -27,7 +27,7 @@ AgentFuse intercepts every LLM call with a two-tier semantic cache (Redis L1 exa
 | Model routing savings | Up to 85% via intelligent complexity routing (RouteLLM-inspired) |
 | Tokens saved | 179,445 per 100 calls |
 | Integration effort | 1 line of code (`completion()` gateway) |
-| Test suite | 1022 unit tests, 93% core coverage |
+| Test suite | 1080 unit tests, 86% core coverage |
 | Models supported | 30+ with hot-reloadable pricing (GPT-5, Claude Opus 4.6, Gemini 2.5 Pro) |
 | Providers supported | 12 (OpenAI, Anthropic, Gemini, DeepSeek, Mistral, Groq, Together, xAI, Fireworks, OpenRouter, Ollama, vLLM) |
 | Production subsystems | 32 (cache, budget, routing, retry, dedup, alerting, anomaly detection, predictive routing, prompt compression, tool cost tracking, conversation estimation, hierarchical budgets) |
@@ -301,6 +301,22 @@ pip install agentfuse-runtime[all]         # Everything
 **Requirements:** Python 3.11+
 
 ## Changelog
+
+### v0.2.1 — Production Fixes (March 2026)
+
+- Fixed: environment variable rate limiting (`AGENTFUSE_RATE_LIMIT_RPS`) now works correctly
+- Fixed: `configure(output_guardrails=...)` now properly sets module-level guardrails
+- Fixed: output guardrails are checked before caching responses
+- Fixed: streaming responses validated before cache storage (both OpenAI and Anthropic)
+- Fixed: `acompletion()` now has automatic fallback chain matching sync `completion()`
+- Fixed: async provider uses `asyncio.get_running_loop()` (deprecated `get_event_loop` removed)
+- Fixed: async streaming injects `stream_options` for OpenAI usage tracking
+- Added: SDK client caching across requests (reuses connection pools)
+- Added: `AgentSession` async context manager (`async with`)
+- Added: real-world end-to-end test script (`examples/e2e_real_test.py`)
+- Added: CI coverage threshold enforcement
+- Filled: all example files with working code
+- 85 public exports, 1080 tests passing
 
 ### v0.2.0 — Production Rebuild (March 2026)
 

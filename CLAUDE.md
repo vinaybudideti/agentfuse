@@ -7,14 +7,14 @@ AgentFuse is a production-grade Python SDK for LLM agent cost optimization. It p
 - **Version:** 0.2.1
 - **Tests:** 1041+ unit tests, ALL GREEN
 - **Commits:** 254, all pushed to github.com/vinaybudideti/agentfuse
-- **Exports:** 79 public API functions/classes
+- **Exports:** 85 public API functions/classes
 - **Coverage:** 93% on core modules
 - **Core Modules:** 42
 - **Test Files:** 82+
 
 ## Key Entry Points
 - `agentfuse/gateway.py` — `completion()` and `acompletion()` functions
-- `agentfuse/__init__.py` — all 79 public exports
+- `agentfuse/__init__.py` — all 85 public exports
 - `agentfuse/core/` — 42 core modules
 - `agentfuse/providers/` — 10 provider modules (pricing, tokenizer, registry, router, responses_api)
 - `agentfuse/integrations/` — 5 integrations (langchain, crewai, openai_agents, mcp, langgraph)
@@ -71,7 +71,7 @@ ReportExporter, BatchSubmitter, RedisVectorStore, CacheMonitor
 
 ## How to Run Tests
 ```bash
-cd /Users/vinaykumarreddy/Documents/llm-project-2026/Project_Building
+cd /path/to/agentfuse
 source .venv/bin/activate
 pytest tests/unit/ -v  # unit tests
 pytest tests/unit/ tests/test_*.py -v  # full safe suite

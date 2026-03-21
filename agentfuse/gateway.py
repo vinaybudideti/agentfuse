@@ -163,8 +163,6 @@ def add_api_key(model: str, api_key: str, base_url: Optional[str] = None):
     _load_balancer.add_endpoint(model, api_key=api_key, base_url=base_url)
 
 
-# NOTE: _load_balancer is initialized above with the other module-level state.
-# It was previously declared here after the function that uses it.
 _spend_ledger = None  # lazily initialized
 
 # Client cache: reuse SDK clients across requests (avoids TLS + connection pool setup per call)
