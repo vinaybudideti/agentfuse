@@ -138,6 +138,12 @@ class TwoTierCacheMiddleware:
         self._direct_threshold = 0.85
         self._adapt_threshold = 0.70
 
+        # Redis circuit breaker (instance-level, not shared across instances)
+        self._redis_failures = 0
+
+        # Embedding version tracking for cache drift detection
+        self._embedding_version = "v1"
+
     def _get_embedder(self):
         if self._embedder is None:
             with self._embedder_lock:
@@ -347,7 +353,6 @@ class TwoTierCacheMiddleware:
 
     # --- L1 helpers with Redis circuit breaker ---
 
-    _redis_failures: int = 0
     _REDIS_CIRCUIT_OPEN_THRESHOLD: int = 5  # disable after 5 consecutive failures
 
     def _redis_available(self) -> bool:
@@ -407,8 +412,6 @@ class TwoTierCacheMiddleware:
             "embedding_model": self._embedding_model_name,
             "embedding_version": self._embedding_version,
         }
-
-    _embedding_version: str = "v1"  # Track embedding model version for drift detection
 
     def set_embedding_version(self, version: str):
         """Set embedding version. Changing version invalidates L2 cache.

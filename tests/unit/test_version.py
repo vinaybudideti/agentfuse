@@ -6,11 +6,11 @@ import agentfuse
 
 
 def test_version_string():
-    assert agentfuse.__version__ == "0.2.0"
+    assert agentfuse.__version__ == "0.2.1"
 
 
 def test_version_info_tuple():
-    assert agentfuse.__version_info__ == (0, 2, 0)
+    assert agentfuse.__version_info__ == (0, 2, 1)
 
 
 def test_all_exports_exist():

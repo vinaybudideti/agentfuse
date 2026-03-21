@@ -82,6 +82,12 @@ _router = IntelligentModelRouter()
 _dedup = RequestDeduplicator()
 _context_guard = ContextWindowGuard()
 _deprecation_checker = ModelDeprecationChecker()
+_load_balancer = None
+
+# Module-level state for optional subsystems (lazily initialized via configure())
+_alert_manager = None
+_rate_limiter = None
+_output_guardrails = None
 
 # Auto-configure from environment variables (12-factor app pattern)
 # AGENTFUSE_RATE_LIMIT_RPS — enable rate limiting (e.g., "10.0")
@@ -102,9 +108,6 @@ try:
     _anomaly_detector = CostAnomalyDetector()
 except ImportError:
     _anomaly_detector = None
-_alert_manager = None  # lazily initialized via configure()
-_rate_limiter = None  # lazily initialized via configure()
-_output_guardrails = None  # lazily initialized via configure()
 
 
 def configure(
@@ -124,7 +127,7 @@ def configure(
         rate_limit_rps: Max requests per second per tenant (None = no limit)
         rate_limit_burst: Burst tolerance for rate limiting
     """
-    global _alert_manager, _rate_limiter
+    global _alert_manager, _rate_limiter, _output_guardrails
     if alert_callback or alert_webhook_url:
         from agentfuse.core.cost_alert import CostAlertManager
         _alert_manager = CostAlertManager(
@@ -160,8 +163,24 @@ def add_api_key(model: str, api_key: str, base_url: Optional[str] = None):
     _load_balancer.add_endpoint(model, api_key=api_key, base_url=base_url)
 
 
-_load_balancer = None
+# NOTE: _load_balancer is initialized above with the other module-level state.
+# It was previously declared here after the function that uses it.
 _spend_ledger = None  # lazily initialized
+
+# Client cache: reuse SDK clients across requests (avoids TLS + connection pool setup per call)
+_client_cache: dict[tuple, Any] = {}
+_client_cache_lock = threading.Lock()
+
+
+def _get_or_create_client(client_class, cache_key: tuple, **kwargs):
+    """Get a cached SDK client or create and cache a new one."""
+    existing = _client_cache.get(cache_key)
+    if existing is not None:
+        return existing
+    with _client_cache_lock:
+        if cache_key not in _client_cache:
+            _client_cache[cache_key] = client_class(**kwargs)
+        return _client_cache[cache_key]
 
 
 def _get_ledger():
@@ -423,7 +442,8 @@ def _call_openai_compatible(model, messages, temperature, tools,
     if base_url:
         client_kwargs["base_url"] = base_url
 
-    client = openai.OpenAI(**client_kwargs)
+    cache_key = ("openai_sync", api_key or "_default_", base_url or "_default_")
+    client = _get_or_create_client(openai.OpenAI, cache_key, **client_kwargs)
 
     call_kwargs = {
         "model": model,
@@ -457,7 +477,8 @@ def _call_anthropic(model, messages, temperature, tools,
     if api_key:
         client_kwargs["api_key"] = api_key
 
-    client = anthropic.Anthropic(**client_kwargs)
+    cache_key = ("anthropic_sync", api_key or "_default_")
+    client = _get_or_create_client(anthropic.Anthropic, cache_key, **client_kwargs)
 
     # Extract system message (Anthropic handles it separately)
     system_msgs = [m["content"] for m in messages if m.get("role") == "system"]
@@ -570,6 +591,16 @@ def _validate_and_cache(result, model, provider, messages,
             # Security: check response for malicious content before caching
             is_safe, _ = validate_response_safety(response_text)
             if is_safe:
+                # Output guardrails check (if configured via configure())
+                if _output_guardrails is not None:
+                    try:
+                        guardrail_result = _output_guardrails.check(response_text)
+                        if hasattr(guardrail_result, 'passed') and not guardrail_result.passed:
+                            logger.warning("Output guardrails blocked caching: %s",
+                                           getattr(guardrail_result, 'reason', 'unknown'))
+                            return
+                    except Exception:
+                        pass  # Never let guardrails crash the caching flow
                 _cache.store(
                     model=model, messages=messages, response=response_text,
                     temperature=temperature, tools=tools, tenant_id=tenant_id,
@@ -714,6 +745,33 @@ async def acompletion(
     except Exception as exc:
         classified = classify_error(exc, provider)
         logger.warning("Async LLM call failed: %s (%s)", classified.error_type, provider)
+        if _METRICS:
+            try:
+                record_error_metric(classified.error_type, provider)
+            except Exception:
+                pass
+
+        # Automatic fallback: same logic as sync completion()
+        if classified.retryable and active_model in DEFAULT_CHAINS:
+            for fallback_model in DEFAULT_CHAINS[active_model]:
+                try:
+                    fb_provider, fb_base_url = resolve_provider(fallback_model)
+                    logger.info("Async falling back: %s -> %s", active_model, fallback_model)
+                    result = await _call_provider_async(
+                        fallback_model, fb_provider, fb_base_url, messages,
+                        temperature, tools, max_tokens, stream, api_key, **kwargs,
+                    )
+                    if not stream:
+                        _record_cost(result, fallback_model, fb_provider, engine)
+                        _validate_and_cache(result, fallback_model, fb_provider,
+                                             messages, temperature, tools, tenant_id)
+                    elapsed = time.monotonic() - start_time
+                    logger.debug("acompletion(%s, fallback from %s) took %.3fs",
+                                 fallback_model, active_model, elapsed)
+                    return result
+                except Exception:
+                    continue  # try next fallback
+
         raise
 
     # Post-call processing (sync — fast)
@@ -721,6 +779,9 @@ async def acompletion(
         _record_cost(result, active_model, provider, engine)
         _validate_and_cache(result, active_model, provider, messages,
                              temperature, tools, tenant_id)
+
+    elapsed = time.monotonic() - start_time
+    logger.debug("acompletion(%s) took %.3fs", active_model, elapsed)
 
     return result
 
@@ -734,7 +795,8 @@ async def _call_provider_async(model, provider, base_url, messages, temperature,
             client_kwargs = {}
             if api_key:
                 client_kwargs["api_key"] = api_key
-            client = anthropic.AsyncAnthropic(**client_kwargs)
+            cache_key = ("anthropic_async", api_key or "_default_")
+            client = _get_or_create_client(anthropic.AsyncAnthropic, cache_key, **client_kwargs)
 
             system_msgs = [m["content"] for m in messages if m.get("role") == "system"]
             chat_msgs = [m for m in messages if m.get("role") != "system"]
@@ -764,7 +826,8 @@ async def _call_provider_async(model, provider, base_url, messages, temperature,
             client_kwargs["api_key"] = api_key
         if base_url:
             client_kwargs["base_url"] = base_url
-        client = openai.AsyncOpenAI(**client_kwargs)
+        cache_key = ("openai_async", api_key or "_default_", base_url or "_default_")
+        client = _get_or_create_client(openai.AsyncOpenAI, cache_key, **client_kwargs)
 
         call_kwargs = {
             "model": model,
@@ -777,6 +840,9 @@ async def _call_provider_async(model, provider, base_url, messages, temperature,
             call_kwargs["max_tokens"] = max_tokens
         if stream:
             call_kwargs["stream"] = True
+            # Auto-inject stream_options for usage tracking (matches sync behavior)
+            if "stream_options" not in kwargs:
+                call_kwargs["stream_options"] = {"include_usage": True}
         call_kwargs.update(kwargs)
 
         return await client.chat.completions.create(**call_kwargs)
@@ -785,7 +851,7 @@ async def _call_provider_async(model, provider, base_url, messages, temperature,
 
     # Fallback: run sync completion in executor
     import asyncio
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
         None,
         lambda: completion(

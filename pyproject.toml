@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentfuse-runtime"
-version = "0.2.0"
+version = "0.2.1"
 description = "Intelligent LLM agent cost optimization runtime — semantic caching + graduated budget enforcement"
 readme = "README.md"
 license = {text = "MIT"}

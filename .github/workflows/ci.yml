@@ -40,6 +40,16 @@ jobs:
           pip install pip-audit
           pip-audit
 
+      - name: Check coverage threshold
+        run: |
+          COV_OUTPUT=$(pytest tests/unit/ --cov=agentfuse/core --cov-report=term -q 2>&1)
+          echo "$COV_OUTPUT" | tail -5
+          COVERAGE=$(echo "$COV_OUTPUT" | grep "^TOTAL" | awk '{print $NF}' | tr -d '%')
+          if [ -n "$COVERAGE" ] && [ "$COVERAGE" -lt 80 ]; then
+            echo "FAIL: Core coverage ${COVERAGE}% is below 80% minimum"
+            exit 1
+          fi
+
       - name: Verify imports
         run: |
           python -c "import agentfuse; print(f'v{agentfuse.__version__}, {len(agentfuse.__all__)} exports')"

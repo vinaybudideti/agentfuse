@@ -203,10 +203,12 @@ def _wrap_anthropic_stream(stream, model, engine, pricing,
             full_response = "".join(collected_content)
             if full_response.strip():
                 engine.add_partial_result(full_response)
-                cache.store(
-                    model=model, messages=messages, response=full_response,
-                    temperature=temperature, tools=tools,
-                )
+                from agentfuse.core.response_validator import validate_for_cache
+                if validate_for_cache(full_response):
+                    cache.store(
+                        model=model, messages=messages, response=full_response,
+                        temperature=temperature, tools=tools,
+                    )
         except Exception:
             pass
 

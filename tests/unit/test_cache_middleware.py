@@ -28,6 +28,12 @@ def _make_cache(embedding_dim=768):
     cache._faiss_vectors = []
     cache._faiss_lock = __import__("threading").Lock()
 
+    # Thresholds and instance-level state
+    cache._direct_threshold = 0.85
+    cache._adapt_threshold = 0.70
+    cache._redis_failures = 0
+    cache._embedding_version = "v1"
+
     # Mock embedder that returns deterministic vectors
     mock_embedder = MagicMock()
     cache._embedder = mock_embedder

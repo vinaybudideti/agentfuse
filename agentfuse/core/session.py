@@ -80,6 +80,20 @@ class AgentSession:
                      self._get_total_cost())
         return False  # don't suppress exceptions
 
+    async def __aenter__(self):
+        self._started_at = time.time()
+        logger.info("AgentSession started (async): %s (budget=$%.2f, model=%s)",
+                     self.run_id, self.budget_usd, self.model)
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        self._ended_at = time.time()
+        elapsed = self._ended_at - self._started_at
+        logger.info("AgentSession ended (async): %s (%.1fs, %d calls, $%.4f spent)",
+                     self.run_id, elapsed, self._call_count,
+                     self._get_total_cost())
+        return False
+
     def completion(self, messages: list[dict], model: Optional[str] = None,
                    temperature: float = 0.0, tools: Optional[list] = None,
                    **kwargs) -> Any:

@@ -5,7 +5,7 @@ Final push to 1000 tests — verification tests for completeness.
 import agentfuse
 
 
-def test_version(): assert agentfuse.__version__ == "0.2.0"
+def test_version(): assert agentfuse.__version__ == "0.2.1"
 def test_exports_min(): assert len(agentfuse.__all__) >= 75
 def test_completion_callable(): assert callable(agentfuse.completion)
 def test_acompletion_callable(): assert callable(agentfuse.acompletion)
