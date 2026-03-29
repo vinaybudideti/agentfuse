@@ -57,8 +57,8 @@ from agentfuse.providers.openai import wrap_openai
 from agentfuse.providers.anthropic import wrap_anthropic
 from agentfuse.gateway import completion, acompletion, get_spend_report, configure, estimate_cost, add_api_key
 
-__version__ = "0.2.1"
-__version_info__ = (0, 2, 1)
+__version__ = "0.2.2"
+__version_info__ = (0, 2, 2)
 __all__ = [
     # Core
     "BudgetEngine",

@@ -91,83 +91,76 @@ wrap_openai(budget_usd=5.00, run_id="my_agent")
 ## Architecture
 
 ```
-                              ┌─────────────────────────────────────────┐
-                              │            AgentFuse Gateway            │
-                              │          completion() / acompletion()   │
-                              └──────────────────┬──────────────────────┘
-                                                 │
-                    ┌────────────────────────────┐│┌────────────────────────────┐
-                    │  ❶ Kill Switch Check       │││  ❷ Input Validation        │
-                    │  ❸ Deprecation Warning      │││  ❹ Rate Limiting (GCRA)    │
-                    └────────────────────────────┘│└────────────────────────────┘
-                                                 │
-                    ┌────────────────────────────┐│┌────────────────────────────┐
-                    │  ❺ Request Optimization    │││  ❻ Intelligent Routing     │
-                    │  (dedup messages)           │││  (RouteLLM complexity)     │
-                    └────────────────────────────┘│└────────────────────────────┘
-                                                 │
-                              ┌──────────────────▼──────────────────────┐
-                              │     ❼ Context Window Guard              │
-                              │     (auto-compress if overflow)         │
-                              └──────────────────┬──────────────────────┘
-                                                 │
-              ┌──────────────────────────────────▼──────────────────────────────────┐
-              │                     ❽ Budget Check (Graduated)                      │
-              │                                                                     │
-              │   ┌──────────┐  ┌──────────────┐  ┌────────────┐  ┌─────────────┐  │
-              │   │  60%     │  │    80%       │  │   90%      │  │   100%      │  │
-              │   │  Alert   │  │  Downgrade   │  │  Compress  │  │  Terminate  │  │
-              │   │ callback │  │  GPT-4o →    │  │  + degrade │  │  graceful   │  │
-              │   │          │  │  GPT-4o-mini │  │            │  │  shutdown   │  │
-              │   └──────────┘  └──────────────┘  └────────────┘  └─────────────┘  │
-              └──────────────────────────────────┬──────────────────────────────────┘
-                                                 │
-              ┌──────────────────────────────────▼──────────────────────────────────┐
-              │                    ❾ Cache Lookup (Two-Tier)                        │
-              │                                                                     │
-              │    L1: Redis exact-match (SHA-256)    →  HIT? Return cached         │
-              │    L2: FAISS semantic similarity      →  HIT? Return cached         │
-              │         (langcache-embed-v2, 768d)       threshold: 0.90            │
-              └──────────────────────────────────┬──────────────────────────────────┘
-                                                 │ MISS
-                    ┌────────────────────────────┐│┌────────────────────────────┐
-                    │  ❿ Key Pool Selection      │││  ⓫ Request Deduplication   │
-                    │  (round-robin API keys)     │││  (coalesce in-flight)      │
-                    └────────────────────────────┘│└────────────────────────────┘
-                                                 │
-              ┌──────────────────────────────────▼──────────────────────────────────┐
-              │              ⓬ Provider API Call (15 providers)                     │
-              │                                                                     │
-              │  OpenAI ─ Anthropic ─ Gemini ─ DeepSeek ─ Mistral ─ Groq           │
-              │  Together ─ xAI ─ Fireworks ─ OpenRouter ─ Ollama ─ vLLM           │
-              │  Azure ─ Bedrock ─ SiliconFlow                                      │
-              │                                                                     │
-              │  ⓭ Automatic Fallback on retryable errors                          │
-              └──────────────────────────────────┬──────────────────────────────────┘
-                                                 │
-                    ┌────────────────────────────┐│┌────────────────────────────┐
-                    │  ⓮ Cost Recording          │││  ⓯ Cost Alerts             │
-                    │  (normalized, cache billing)│││  (webhook delivery)        │
-                    └────────────────────────────┘│└────────────────────────────┘
-                                                 │
-                    ┌────────────────────────────┐│┌────────────────────────────┐
-                    │  ⓰ Anomaly Detection       │││  ⓱ Prometheus + OTel      │
-                    │  (EMA + z-score)            │││  (GenAI spans + metrics)   │
-                    └────────────────────────────┘│└────────────────────────────┘
-                                                 │
-                    ┌────────────────────────────┐│┌────────────────────────────┐
-                    │  ⓲ SpendLedger             │││  ⓳ Response Validation     │
-                    │  (persistent JSONL)         │││  (XSS, PII, security)      │
-                    └────────────────────────────┘│└────────────────────────────┘
-                                                 │
-                              ┌──────────────────▼──────────────────────┐
-                              │     ⓴ Cache Store                       │
-                              │     (L1 + L2, CacheAttack defense)      │
-                              └──────────────────┬──────────────────────┘
-                                                 │
-                              ┌──────────────────▼──────────────────────┐
-                              │              Response                    │
-                              └─────────────────────────────────────────┘
+                         ┌──────────────────────────────────┐
+                         │        AgentFuse Gateway          │
+                         │    completion() / acompletion()   │
+                         └───────────────┬──────────────────┘
+                                         │
+                         ┌───────────────▼──────────────────┐
+                         │  1. Kill Switch Check             │
+                         │  2. Input Validation (fail-fast)  │
+                         │  3. Deprecation Warning           │
+                         │  4. Rate Limiting (GCRA)          │
+                         └───────────────┬──────────────────┘
+                                         │
+                         ┌───────────────▼──────────────────┐
+                         │  5. Request Optimization          │
+                         │  6. Intelligent Model Routing     │
+                         │     (RouteLLM complexity-based)   │
+                         │  7. Context Window Guard          │
+                         └───────────────┬──────────────────┘
+                                         │
+            ┌────────────────────────────▼────────────────────────────┐
+            │              8. Budget Check (Graduated)                │
+            │                                                         │
+            │  ┌────────┐ ┌───────────┐ ┌──────────┐ ┌────────────┐  │
+            │  │  60%   │ │   80%     │ │   90%    │ │   100%     │  │
+            │  │ Alert  │ │ Downgrade │ │ Compress │ │ Terminate  │  │
+            │  │        │ │ GPT-4o → │ │+ degrade │ │ graceful   │  │
+            │  │        │ │ 4o-mini  │ │          │ │ shutdown   │  │
+            │  └────────┘ └───────────┘ └──────────┘ └────────────┘  │
+            └────────────────────────────┬────────────────────────────┘
+                                         │
+            ┌────────────────────────────▼────────────────────────────┐
+            │              9. Cache Lookup (Two-Tier)                  │
+            │                                                         │
+            │  L1: Redis exact-match (SHA-256)   → HIT? Return cached │
+            │  L2: FAISS semantic (768d, 0.90)   → HIT? Return cached │
+            └────────────────────────────┬────────────────────────────┘
+                                         │ MISS
+                         ┌───────────────▼──────────────────┐
+                         │ 10. Key Pool Selection            │
+                         │ 11. Request Deduplication          │
+                         └───────────────┬──────────────────┘
+                                         │
+            ┌────────────────────────────▼────────────────────────────┐
+            │             12. Provider API Call                        │
+            │                                                         │
+            │  OpenAI · Anthropic · Gemini · DeepSeek · Mistral       │
+            │  Groq · Together · xAI · Fireworks · OpenRouter         │
+            │  Ollama · vLLM · Azure · Bedrock · SiliconFlow          │
+            │                                                         │
+            │             13. Automatic Fallback on errors             │
+            └────────────────────────────┬────────────────────────────┘
+                                         │
+                         ┌───────────────▼──────────────────┐
+                         │ 14. Cost Recording (normalized)   │
+                         │ 15. Cost Alerts (webhook)         │
+                         │ 16. Anomaly Detection (EMA)       │
+                         │ 17. Prometheus + OTel spans       │
+                         │ 18. SpendLedger (JSONL)           │
+                         └───────────────┬──────────────────┘
+                                         │
+                         ┌───────────────▼──────────────────┐
+                         │ 19. Response Validation           │
+                         │     (XSS, PII, security)          │
+                         │ 20. Cache Store                    │
+                         │     (L1+L2, CacheAttack defense)  │
+                         └───────────────┬──────────────────┘
+                                         │
+                         ┌───────────────▼──────────────────┐
+                         │           Response                │
+                         └──────────────────────────────────┘
 ```
 
 **Graduated Budget Policies:**
@@ -408,6 +401,14 @@ pip install agentfuse-runtime[all]         # Everything
 **Requirements:** Python 3.11+
 
 ## Changelog
+
+### v0.2.2 — PyPI Release (March 2026)
+
+- Published to PyPI as `agentfuse-runtime`
+- Added 3 new framework integrations: LangGraph, MCP (Model Context Protocol), Pydantic AI
+- Added 3 new providers: Azure OpenAI, AWS Bedrock, SiliconFlow (15 total)
+- Updated architecture diagram with full 20-step gateway flow
+- 85 public exports, 1099 tests passing, 93% core coverage
 
 ### v0.2.1 — Production Fixes (March 2026)
 
